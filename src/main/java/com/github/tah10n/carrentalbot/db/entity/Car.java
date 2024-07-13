@@ -1,4 +1,4 @@
-package com.github.tah10n.carrentalbot.entity;
+package com.github.tah10n.carrentalbot.db.entity;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
