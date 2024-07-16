@@ -3,6 +3,7 @@ package com.github.tah10n.carrentalbot.ability;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
+import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.Ability;
 import org.telegram.telegrambots.abilitybots.api.objects.Locality;
@@ -23,14 +24,16 @@ public class LanguageAbility implements AbilityExtension {
     private final AbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
+    private final MessagesUtil messagesUtils;
 
-    public LanguageAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO) {
+    public LanguageAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, MessagesUtil messagesUtils) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
+        this.messagesUtils = messagesUtils;
     }
 
-    public Ability language() {
+    public Ability languageCommand() {
         return Ability
                 .builder()
                 .name("language")
@@ -40,8 +43,7 @@ public class LanguageAbility implements AbilityExtension {
                 .action(ctx -> {
                     MyUser myUser = myUserDAO.getById(ctx.user().getId());
                     String lang = myUser.getLanguage();
-                    ResourceBundle messages = ResourceBundle.getBundle("messages", new Locale(lang));
-                    String text = messages.getString("select_language");
+                    String text = messagesUtils.getMessage("select_language", lang);
                     SendMessage message = SendMessage.builder()
                             .chatId(ctx.chatId().toString())
                             .text(text)
@@ -63,9 +65,7 @@ public class LanguageAbility implements AbilityExtension {
                     MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
                     myUser.setLanguage(language);
                     myUserDAO.save(myUser);
-                    String lang = myUser.getLanguage();
-                    ResourceBundle messages = ResourceBundle.getBundle("messages", new Locale(lang));
-                    String text = messages.getString("language_changed");
+                    String text = messagesUtils.getMessage("language_changed",language);
                     bot.getSilent().execute(DeleteMessage.builder().chatId(getChatId(upd)).messageId(upd.getCallbackQuery().getMessage().getMessageId()).build());
                     bot.getSilent().send(text, getChatId(upd));
                 })

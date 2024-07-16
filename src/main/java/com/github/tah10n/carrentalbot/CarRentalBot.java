@@ -1,11 +1,14 @@
 package com.github.tah10n.carrentalbot;
 
 import com.github.tah10n.carrentalbot.ability.LanguageAbility;
+import com.github.tah10n.carrentalbot.ability.ListOfCarsAbility;
 import com.github.tah10n.carrentalbot.ability.StartAbility;
 import com.github.tah10n.carrentalbot.config.BotConfig;
+import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
+import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
@@ -22,19 +25,23 @@ public class CarRentalBot extends AbilityBot implements SpringLongPollingBot {
     private final Map<String, Car> cars = new HashMap<>();
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
+    private final CarDAO carDAO;
+    private final MessagesUtil messagesUtil;
 
-    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO) {
+    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarDAO carDAO, MessagesUtil messagesUtil) {
         super(telegramClient, botConfig.getName());
         this.botConfig = botConfig;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
+        this.carDAO = carDAO;
+        this.messagesUtil = messagesUtil;
 
-        addExtensions(new StartAbility(this, keyboardMaker, myUserDAO), new LanguageAbility(this, keyboardMaker, myUserDAO));
+        addExtensions(
+                new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil),
+                new LanguageAbility(this, keyboardMaker, myUserDAO, messagesUtil),
+                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carDAO, messagesUtil)
+        );
 
-        // Инициализация списка автомобилей
-        cars.put("car1", new Car("ауди", 50));
-        cars.put("car2", new Car("миникупер", 80));
-        cars.put("car3", new Car("рено", 70));
     }
 
     @Override

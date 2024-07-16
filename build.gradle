@@ -33,9 +33,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '3.3.1'
 
-    implementation 'org.telegram:telegrambots-springboot-longpolling-starter:7.7.0'
-    implementation 'org.telegram:telegrambots-abilities:7.7.0'
-    implementation 'org.telegram:telegrambots-client:7.7.0'
+    implementation 'org.telegram:telegrambots-springboot-longpolling-starter:7.7.1'
+    implementation 'org.telegram:telegrambots-abilities:7.7.1'
+    implementation 'org.telegram:telegrambots-client:7.7.1'
 }
 
 tasks.named('test') {
