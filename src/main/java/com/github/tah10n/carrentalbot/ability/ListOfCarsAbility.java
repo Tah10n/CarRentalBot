@@ -15,6 +15,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -79,7 +80,7 @@ public class ListOfCarsAbility implements AbilityExtension {
                     .chatId(getChatId(upd))
                     .text(car.toString())
                     .parseMode("HTML")
-                    .replyMarkup(keyboardMaker.getCarKeyboard(car.getId(), myUser.getLanguage()))
+                    .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
                     .build();
             bot.getSilent().execute(sendMessage);
         }
@@ -115,6 +116,7 @@ public class ListOfCarsAbility implements AbilityExtension {
                     String lang = myUser.getLanguage();
                     car.setModel(split[0]);
                     car.setDescription(split[1]);
+                    car.setMap(new HashMap<>());
                     carDAO.save(car);
                     String text = messagesUtil.getMessage("car_added", lang);
                     SendMessage message = SendMessage.builder()
@@ -123,6 +125,7 @@ public class ListOfCarsAbility implements AbilityExtension {
                             .replyMarkup(keyboardMaker.getBackKeyboard(lang))
                             .build();
                     bot.getSilent().execute(message);
+                    System.out.println("1");
                 })
 
                 .onlyIf(hasMessageWithText("::"))

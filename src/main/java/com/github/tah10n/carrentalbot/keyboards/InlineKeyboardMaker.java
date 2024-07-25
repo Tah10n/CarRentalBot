@@ -1,21 +1,27 @@
 package com.github.tah10n.carrentalbot.keyboards;
 
+import com.github.tah10n.carrentalbot.db.dao.CarDAO;
+import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.utils.ButtonsUtil;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 
-import java.util.Locale;
-import java.util.ResourceBundle;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
+import java.util.*;
 
 @Component
 public class InlineKeyboardMaker {
     private final ButtonsUtil buttonsUtil;
+    private final CarDAO carDAO;
 
-    public InlineKeyboardMaker(ButtonsUtil buttonsUtil) {
+    public InlineKeyboardMaker(ButtonsUtil buttonsUtil, CarDAO carDAO) {
         this.buttonsUtil = buttonsUtil;
+        this.carDAO = carDAO;
     }
 
     public InlineKeyboardMarkup getStartKeyboard(String lang) {
@@ -46,7 +52,7 @@ public class InlineKeyboardMaker {
                 )).build();
     }
 
-    public InlineKeyboardMarkup getCarKeyboard(String carId, String lang) {
+    public InlineKeyboardMarkup getChooseCarKeyboard(String carId, String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
                         InlineKeyboardButton.builder().text(buttonsUtil.getButton("choose_car", lang)).callbackData("choose_car:" + carId).build()
@@ -58,5 +64,88 @@ public class InlineKeyboardMaker {
                 .keyboardRow(new InlineKeyboardRow(
                         InlineKeyboardButton.builder().text(buttonsUtil.getButton("add_car", language)).callbackData("add_car").build()
                 )).build();
+    }
+
+    public InlineKeyboardMarkup getCalendarKeyboard(String language, String carId, LocalDate currentDate, Long myUserId) {
+
+        List<InlineKeyboardRow> keyboardRows = new ArrayList<>();
+
+        YearMonth yearMonth = YearMonth.from(currentDate);
+        LocalDate firstOfMonth = yearMonth.atDay(1);
+        int dayOfWeek = firstOfMonth.getDayOfWeek().getValue();
+        String monthDisplayName = yearMonth.getMonth().getDisplayName(TextStyle.FULL_STANDALONE, Locale.forLanguageTag(language));
+        List<InlineKeyboardButton> header = new ArrayList<>();
+        header.add(InlineKeyboardButton.builder().text(monthDisplayName + " " + yearMonth.getYear()).callbackData("ignore").build());
+        keyboardRows.add(new InlineKeyboardRow(header));
+
+        List<InlineKeyboardButton> daysOfWeek = new ArrayList<>();
+
+        String[] weekDays = {
+                DayOfWeek.MONDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.TUESDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.WEDNESDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.THURSDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.FRIDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.SATURDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language)),
+                DayOfWeek.SUNDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language))
+        };
+        for (String day : weekDays) {
+            daysOfWeek.add(InlineKeyboardButton.builder().text(day).callbackData("ignore").build());
+        }
+        keyboardRows.add(new InlineKeyboardRow(daysOfWeek));
+
+        List<InlineKeyboardButton> row = new ArrayList<>();
+        int monthLength = yearMonth.lengthOfMonth();
+        for (int i = 1; i < dayOfWeek; i++) {
+            row.add(InlineKeyboardButton.builder().text(" ").callbackData("ignore").build());
+        }
+        for (int day = 1; day <= monthLength; day++) {
+            String buttonText = String.valueOf(day);
+            LocalDate date = yearMonth.atDay(day);
+            Car car = carDAO.getById(carId);
+
+//            Map<Long, List<LocalDate>> map = car.getMap();
+//            if (map == null) {
+//                map = new HashMap<>();
+//            }
+            List<LocalDate> bookedDates = car.getBookedDates(myUserId);
+
+            String callbackData = "ignore";
+            if (date.isBefore(LocalDate.now())) {
+                buttonText = buttonText + " ❌";
+            } else {
+
+                if (bookedDates != null && bookedDates.contains(date)) {
+                    buttonText = buttonText + " ✅";
+
+                }
+                callbackData = "choose_date:" + date + ":" + language + ":" + carId + ":" + currentDate;
+            }
+
+            row.add(InlineKeyboardButton.builder().text(buttonText).callbackData(callbackData).build());
+            if (row.size() == 7) {
+                keyboardRows.add(new InlineKeyboardRow(row));
+                row = new ArrayList<>();
+            }
+        }
+        if (!row.isEmpty()) {
+
+            while (row.size() < 7) {
+
+                row.add(InlineKeyboardButton.builder().text(" ").callbackData("ignore").build());
+            }
+            keyboardRows.add(new InlineKeyboardRow(row));
+        }
+
+        List<InlineKeyboardButton> navigationRow = new ArrayList<>();
+        navigationRow.add(InlineKeyboardButton.builder().text("◀️").callbackData("change_month:prev:" + language + ":" + carId + ":" + currentDate).build());
+        navigationRow.add(InlineKeyboardButton.builder().text("▶️").callbackData("change_month:next:" + language + ":" + carId + ":" + currentDate).build());
+
+        keyboardRows.add(new InlineKeyboardRow(navigationRow));
+
+
+        return InlineKeyboardMarkup.builder()
+                .keyboard(keyboardRows)
+                .build();
     }
 }

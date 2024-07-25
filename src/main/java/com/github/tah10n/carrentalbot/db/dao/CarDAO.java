@@ -18,11 +18,11 @@ public class CarDAO {
         carRepository.save(car);
     }
 
-    public Car getById(Long id) {
+    public Car getById(String id) {
         return carRepository.findById(id).orElse(null);
     }
 
-    public boolean existsById(Long id) {
+    public boolean existsById(String id) {
         return carRepository.existsById(id);
     }
 
@@ -30,7 +30,7 @@ public class CarDAO {
         return carRepository.findAll();
     }
 
-    public void deleteById(Long id) {
+    public void deleteById(String id) {
         carRepository.deleteById(id);
     }
 }

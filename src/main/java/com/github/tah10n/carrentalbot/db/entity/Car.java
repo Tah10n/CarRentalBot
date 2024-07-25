@@ -8,8 +8,13 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,14 +26,23 @@ public class Car {
     private String model;
     private String description;
     private int pricePerDay;
-    private List<LocalDate> bookedDates;
+    private Map<Long, List<LocalDate>> map;
 
     public boolean isAvailable(LocalDate date) {
-        return !bookedDates.contains(date);
+        Set<LocalDate> dates = map.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+        return !dates.contains(date);
     }
 
-    public void book(LocalDate date) {
-        bookedDates.add(date);
+    public void book(Long userId, List<LocalDate> dates) {
+        map.put(userId, dates);
+    }
+
+    public List<LocalDate> getBookedDates (Long userId) {
+        if(map != null) {
+            return map.get(userId);
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     @Override
