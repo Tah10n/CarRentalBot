@@ -24,29 +24,57 @@ public class Car {
     @Id
     private String id;
     private String model;
-    private String description;
+    private Description description;
     private int pricePerDay;
     private Map<Long, List<LocalDate>> map;
-
-    public boolean isAvailable(LocalDate date) {
-        Set<LocalDate> dates = map.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
-        return !dates.contains(date);
-    }
-
-    public void book(Long userId, List<LocalDate> dates) {
-        map.put(userId, dates);
-    }
-
-    public List<LocalDate> getBookedDates (Long userId) {
-        if(map != null) {
-            return map.get(userId);
-        } else {
-            return Collections.emptyList();
-        }
-    }
 
     @Override
     public String toString() {
         return model;
+    }
+
+    public void setDescription(String description, String lang) {
+        this.description = new Description();
+        setDescriptionForLanguage(description, lang, this.description);
+    }
+
+    public String getDescription(String lang) {
+        switch (lang) {
+            case "en":
+                return description.getEnDescription();
+            case "ru":
+                return description.getRuDescription();
+            case "sr":
+                return description.getRsDescription();
+            default:
+                return description.getRuDescription();
+        }
+    }
+
+    private void setDescriptionForLanguage(String description, String lang, Description descriptionObject) {
+        switch (lang) {
+            case "en":
+                descriptionObject.setEnDescription(description);
+                break;
+            case "ru":
+                descriptionObject.setRuDescription(description);
+                break;
+            case "sr":
+                descriptionObject.setRsDescription(description);
+                break;
+            default:
+                descriptionObject.setRuDescription(description);
+                break;
+        }
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    private static class Description {
+        private String enDescription;
+        private String ruDescription;
+        private String rsDescription;
+
     }
 }

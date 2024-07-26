@@ -9,6 +9,7 @@ import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
+import com.github.tah10n.carrentalbot.service.CarService;
 import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
@@ -26,22 +27,22 @@ public class CarRentalBot extends AbilityBot implements SpringLongPollingBot {
     private final Map<String, Car> cars = new HashMap<>();
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
-    private final CarDAO carDAO;
+    private final CarService carService;
     private final MessagesUtil messagesUtil;
 
-    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarDAO carDAO, MessagesUtil messagesUtil) {
+    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
         super(telegramClient, botConfig.getName());
         this.botConfig = botConfig;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
-        this.carDAO = carDAO;
+        this.carService = carService;
         this.messagesUtil = messagesUtil;
 
         addExtensions(
                 new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil),
                 new LanguageAbility(this, keyboardMaker, myUserDAO, messagesUtil),
-                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carDAO, messagesUtil),
-                new RentACarAbility(this, keyboardMaker, myUserDAO, carDAO, messagesUtil)
+                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil),
+                new RentACarAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil)
         );
 
     }

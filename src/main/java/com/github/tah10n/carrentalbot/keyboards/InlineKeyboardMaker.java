@@ -1,7 +1,6 @@
 package com.github.tah10n.carrentalbot.keyboards;
 
-import com.github.tah10n.carrentalbot.db.dao.CarDAO;
-import com.github.tah10n.carrentalbot.db.entity.Car;
+import com.github.tah10n.carrentalbot.service.CarService;
 import com.github.tah10n.carrentalbot.utils.ButtonsUtil;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -12,16 +11,18 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 @Component
 public class InlineKeyboardMaker {
     private final ButtonsUtil buttonsUtil;
-    private final CarDAO carDAO;
+    private final CarService carService;
 
-    public InlineKeyboardMaker(ButtonsUtil buttonsUtil, CarDAO carDAO) {
+    public InlineKeyboardMaker(ButtonsUtil buttonsUtil, CarService carService) {
         this.buttonsUtil = buttonsUtil;
-        this.carDAO = carDAO;
+        this.carService = carService;
     }
 
     public InlineKeyboardMarkup getStartKeyboard(String lang) {
@@ -69,13 +70,13 @@ public class InlineKeyboardMaker {
     public InlineKeyboardMarkup getCalendarKeyboard(String language, String carId, LocalDate currentDate, Long myUserId) {
 
         List<InlineKeyboardRow> keyboardRows = new ArrayList<>();
-
+        String ignoreCallbackData = "ignore_calendar";
         YearMonth yearMonth = YearMonth.from(currentDate);
         LocalDate firstOfMonth = yearMonth.atDay(1);
         int dayOfWeek = firstOfMonth.getDayOfWeek().getValue();
         String monthDisplayName = yearMonth.getMonth().getDisplayName(TextStyle.FULL_STANDALONE, Locale.forLanguageTag(language));
         List<InlineKeyboardButton> header = new ArrayList<>();
-        header.add(InlineKeyboardButton.builder().text(monthDisplayName + " " + yearMonth.getYear()).callbackData("ignore").build());
+        header.add(InlineKeyboardButton.builder().text(monthDisplayName + " " + yearMonth.getYear()).callbackData(ignoreCallbackData).build());
         keyboardRows.add(new InlineKeyboardRow(header));
 
         List<InlineKeyboardButton> daysOfWeek = new ArrayList<>();
@@ -90,27 +91,22 @@ public class InlineKeyboardMaker {
                 DayOfWeek.SUNDAY.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag(language))
         };
         for (String day : weekDays) {
-            daysOfWeek.add(InlineKeyboardButton.builder().text(day).callbackData("ignore").build());
+            daysOfWeek.add(InlineKeyboardButton.builder().text(day).callbackData(ignoreCallbackData).build());
         }
         keyboardRows.add(new InlineKeyboardRow(daysOfWeek));
 
         List<InlineKeyboardButton> row = new ArrayList<>();
         int monthLength = yearMonth.lengthOfMonth();
         for (int i = 1; i < dayOfWeek; i++) {
-            row.add(InlineKeyboardButton.builder().text(" ").callbackData("ignore").build());
+            row.add(InlineKeyboardButton.builder().text(" ").callbackData(ignoreCallbackData).build());
         }
         for (int day = 1; day <= monthLength; day++) {
             String buttonText = String.valueOf(day);
             LocalDate date = yearMonth.atDay(day);
-            Car car = carDAO.getById(carId);
 
-//            Map<Long, List<LocalDate>> map = car.getMap();
-//            if (map == null) {
-//                map = new HashMap<>();
-//            }
-            List<LocalDate> bookedDates = car.getBookedDates(myUserId);
+            List<LocalDate> bookedDates = carService.getBookedDates(myUserId, carId);
 
-            String callbackData = "ignore";
+            String callbackData = ignoreCallbackData;
             if (date.isBefore(LocalDate.now())) {
                 buttonText = buttonText + " ❌";
             } else {

@@ -10,7 +10,7 @@ public class MessagesUtil {
     public String getMessage(String key, String lang) {
         ResourceBundle messages = ResourceBundle.getBundle("messages", new Locale(lang));
 
-        if (!messages.containsKey(key)) {
+        if (!messages.containsKey(key) || messages.getString(key).equals("null") || messages.getString(key).isEmpty()) {
             return key;
         }
 

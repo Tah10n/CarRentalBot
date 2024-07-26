@@ -25,7 +25,7 @@ public class MyUser {
 
     public void setLanguage(String language) {
         if (language == null || language.isEmpty() || (!language.equals("en") && !language.equals("ru") && !language.equals("sr"))) {
-            this.language = "en";
+            this.language = "ru";
         } else {
             this.language = language;
         }

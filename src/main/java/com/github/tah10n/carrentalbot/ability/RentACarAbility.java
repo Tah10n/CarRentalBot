@@ -1,14 +1,17 @@
 package com.github.tah10n.carrentalbot.ability;
 
-import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
+import com.github.tah10n.carrentalbot.service.CarService;
 import com.github.tah10n.carrentalbot.utils.MessagesUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -19,18 +22,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Predicate;
 
+@Slf4j
 public class RentACarAbility implements AbilityExtension {
     private final AbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
-    private final CarDAO carDAO;
+    private final CarService carService;
     private final MessagesUtil messagesUtil;
 
-    public RentACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarDAO carDAO, MessagesUtil messagesUtil) {
+    public RentACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
-        this.carDAO = carDAO;
+        this.carService = carService;
         this.messagesUtil = messagesUtil;
     }
 
@@ -40,11 +44,10 @@ public class RentACarAbility implements AbilityExtension {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
                     String chatId = upd.getCallbackQuery().getFrom().getId().toString();
                     String carId = upd.getCallbackQuery().getData().split(":")[1];
-                    Car car = carDAO.getById(carId);
                     MyUser myUser = myUserDAO.getById(myUserId);
                     String lang = myUser.getLanguage();
                     LocalDate date = LocalDate.now();
-                    String text = messagesUtil.getMessage("select_dates", lang) + " " + car.toString();
+                    String text = messagesUtil.getMessage("select_dates", lang) + " " + carService.getCarName(carId);
                     EditMessageText message = EditMessageText.builder()
                             .chatId(chatId)
                             .messageId(upd.getCallbackQuery().getMessage().getMessageId())
@@ -55,7 +58,8 @@ public class RentACarAbility implements AbilityExtension {
                     try {
                         bot.getTelegramClient().execute(message);
                     } catch (TelegramApiException e) {
-                        throw new RuntimeException(e);
+                       log.error(e.getMessage());
+                       log.error(Arrays.toString(e.getStackTrace()));
                     }
                 })
                 .onlyIf(hasCallbackQueryWith("choose_car"))
@@ -101,29 +105,13 @@ public class RentACarAbility implements AbilityExtension {
                     String language = split[2];
                     String carId = split[3];
                     LocalDate currentDate = LocalDate.parse(split[4]);
-                    Car car = carDAO.getById(carId);
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
-                    Map<Long, List<LocalDate>> map = car.getMap();
-                    if(map==null) {
-                        map = new HashMap<>();
-                    }
-                    if(!map.containsKey(myUserId)) {
-                        map.put(myUserId, List.of(date));
-                    } else {
-                        List<LocalDate> bookedDates = map.get(myUserId);
-                        if(bookedDates.contains(date)) {
-                            bookedDates.remove(date);
-                        } else {
-                            bookedDates.add(date);
-                        }
-                    }
-                    car.setMap(map);
-                    carDAO.save(car);
+                    Car car = carService.addDate(myUserId, carId, date);
                     StringBuilder stringBuilder = new StringBuilder();
                     stringBuilder.append(messagesUtil.getMessage("select_dates", language));
                     stringBuilder.append(car.toString());
                     stringBuilder.append(". ");
-                    stringBuilder.append(formatDateRangeText(car.getBookedDates(myUserId), language));
+                    stringBuilder.append(formatDateRangeText(carService.getBookedDates(myUserId, carId), language));
                     String text = stringBuilder.toString();
 
                     EditMessageText messageText = EditMessageText.builder()
@@ -166,6 +154,22 @@ public class RentACarAbility implements AbilityExtension {
         result.append(formatRange(rangeStart, rangeEnd, formatter));
 
         return result.toString();
+    }
+
+    public ReplyFlow ignore() {
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    Long myUserId = upd.getCallbackQuery().getFrom().getId();
+                    MyUser myUser = myUserDAO.getById(myUserId);
+                    String lang = myUser.getLanguage();
+                    AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                            .callbackQueryId(upd.getCallbackQuery().getId())
+                            .text(messagesUtil.getMessage("select_dates", lang))
+                            .build();
+                    bot.getSilent().execute(answerCallbackQuery);
+                })
+                .onlyIf(hasCallbackQueryWith("ignore_calendar"))
+                .build();
     }
 
     private String formatRange(LocalDate start, LocalDate end, DateTimeFormatter formatter) {

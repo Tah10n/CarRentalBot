@@ -1,10 +1,10 @@
 package com.github.tah10n.carrentalbot.ability;
 
-import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
+import com.github.tah10n.carrentalbot.service.CarService;
 import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
@@ -15,7 +15,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -26,32 +25,29 @@ public class ListOfCarsAbility implements AbilityExtension {
     private final AbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
-    private final CarDAO carDAO;
+    private final CarService carService;
     private final MessagesUtil messagesUtil;
 
-    public ListOfCarsAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarDAO carDAO, MessagesUtil messagesUtil) {
+    public ListOfCarsAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
-        this.carDAO = carDAO;
+        this.carService = carService;
         this.messagesUtil = messagesUtil;
     }
 
     public ReplyFlow listOfCars() {
-        return ReplyFlow                .builder(abilityBot.getDb())
-                .action((bot, upd) -> {
-                    sendListOfCars(bot, upd);
-
-                })
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action(this::sendListOfCars)
                 .onlyIf(hasCallbackQueryWith("list_of_cars"))
                 .build();
     }
 
     private void sendListOfCars(BaseAbilityBot bot, Update upd) {
-        List<Car> cars = carDAO.getAll();
+        List<Car> cars = carService.getAllCars();
         MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
 
-        if(Boolean.TRUE.equals(myUser.getIsAdmin())) {
+        if (Boolean.TRUE.equals(myUser.getIsAdmin())) {
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
                     .text(messagesUtil.getMessage("count_of_cars", myUser.getLanguage()) + cars.size())
@@ -61,7 +57,7 @@ public class ListOfCarsAbility implements AbilityExtension {
             bot.getSilent().execute(sendMessage);
         }
 
-        if(cars.isEmpty()) {
+        if (cars.isEmpty()) {
             String text = messagesUtil.getMessage("no_cars", upd.getCallbackQuery().getFrom().getLanguageCode());
 
             bot.getSilent().send(text, getChatId(upd));
@@ -75,7 +71,7 @@ public class ListOfCarsAbility implements AbilityExtension {
 
         bot.getSilent().execute(deleteMessage);
 
-        for(Car car : cars) {
+        for (Car car : cars) {
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
                     .text(car.toString())
@@ -101,7 +97,6 @@ public class ListOfCarsAbility implements AbilityExtension {
                     bot.getSilent().execute(message);
                 })
                 .onlyIf(hasCallbackQueryWith("add_car"))
-                .next(enterCar())
                 .build();
     }
 
@@ -110,24 +105,23 @@ public class ListOfCarsAbility implements AbilityExtension {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     String[] split = upd.getMessage().getText().split("::");
-                    Car car = new Car();
-                    String chatId = upd.getMessage().getFrom().getId().toString();
+                    Long chatId = upd.getMessage().getFrom().getId();
                     MyUser myUser = myUserDAO.getById(upd.getMessage().getFrom().getId());
                     String lang = myUser.getLanguage();
-                    car.setModel(split[0]);
-                    car.setDescription(split[1]);
-                    car.setMap(new HashMap<>());
-                    carDAO.save(car);
-                    String text = messagesUtil.getMessage("car_added", lang);
-                    SendMessage message = SendMessage.builder()
-                            .chatId(chatId)
-                            .text(text)
-                            .replyMarkup(keyboardMaker.getBackKeyboard(lang))
-                            .build();
-                    bot.getSilent().execute(message);
-                    System.out.println("1");
+                    String model = split[0];
+                    String description = split[1];
+                    if (carService.addCar(model, description, lang)) {
+                        String text = messagesUtil.getMessage("car_added", lang);
+                        SendMessage message = SendMessage.builder()
+                                .chatId(chatId)
+                                .text(text)
+                                .replyMarkup(keyboardMaker.getBackKeyboard(lang))
+                                .build();
+                        bot.getSilent().execute(message);
+                    } else {
+                        bot.getSilent().send(messagesUtil.getMessage("car_not_added", lang), chatId);
+                    }
                 })
-
                 .onlyIf(hasMessageWithText("::"))
                 .build();
     }
