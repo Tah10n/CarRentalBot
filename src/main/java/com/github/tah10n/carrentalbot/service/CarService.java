@@ -1,7 +1,10 @@
 package com.github.tah10n.carrentalbot.service;
 
+import com.github.tah10n.carrentalbot.db.dao.BookingHistoryDAO;
 import com.github.tah10n.carrentalbot.db.dao.CarDAO;
+import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.Car;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +16,11 @@ import java.util.stream.Collectors;
 @Transactional
 public class CarService {
     private final CarDAO carDAO;
+    private final BookingHistoryDAO bookingHistoryDAO;
 
-    public CarService(CarDAO carDAO) {
+    public CarService(CarDAO carDAO, BookingHistoryDAO bookingHistoryDAO) {
         this.carDAO = carDAO;
+        this.bookingHistoryDAO = bookingHistoryDAO;
     }
 
     public List<Car> getAllCars() {
@@ -32,25 +37,6 @@ public class CarService {
         car.setMap(new HashMap<>());
         carDAO.save(car);
         return true;
-    }
-
-    public void deleteCar(String carId) {
-        carDAO.deleteById(carId);
-    }
-
-    public boolean isAvailableDate(LocalDate date, String carId) {
-        Car car = carDAO.getById(carId);
-        Map<Long, List<LocalDate>> map = car.getMap();
-        Set<LocalDate> dates = map.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
-        return !dates.contains(date);
-    }
-
-    public void book(Long userId, List<LocalDate> dates, String carId) {
-        Car car = carDAO.getById(carId);
-        Map<Long, List<LocalDate>> map = car.getMap();
-        map.put(userId, dates);
-        car.setMap(map);
-        carDAO.save(car);
     }
 
     public List<LocalDate> getBookedDates (Long userId, String carId) {
@@ -87,5 +73,51 @@ public class CarService {
         car.setMap(map);
         carDAO.save(car);
         return car;
+    }
+
+    public void clearDates(Long myUserId, String carId) {
+        Car car = carDAO.getById(carId);
+        Map<Long, List<LocalDate>> map = car.getMap();
+        map.remove(myUserId);
+        car.setMap(map);
+        carDAO.save(car);
+    }
+
+    public void bookACar(Long myUserId, String carId) {
+        Car car = carDAO.getById(carId);
+        Map<Long, List<LocalDate>> map = car.getMap();
+
+        var bookedDates = map.get(myUserId);
+        if(bookedDates == null) {
+            return;
+        }
+
+        BookingHistory bookingHistory = new BookingHistory();
+        bookingHistory.setCarId(carId);
+        bookingHistory.setUserId(myUserId);
+        bookingHistory.setBookedDates(bookedDates);
+        bookingHistory.setActive(true);
+        bookingHistoryDAO.save(bookingHistory);
+    }
+
+    @Scheduled(cron = "0 0 1 * * *")
+    public void checkExpiredDates() {
+        System.out.println("Checking expired dates");
+        List<BookingHistory> allActiveHistory = bookingHistoryDAO.getAllActiveHistory();
+        for (BookingHistory history : allActiveHistory) {
+            LocalDate nowDate = LocalDate.now();
+            for (LocalDate bookedDate : history.getBookedDates()) {
+                if (bookedDate.isBefore(nowDate)) {
+                    history.setActive(false);
+                    bookingHistoryDAO.save(history);
+                    break;
+                }
+            }
+        }
+    }
+
+    public boolean isBookedDate(LocalDate date, String carId) {
+        List<LocalDate> allActiveBookedDates = bookingHistoryDAO.getAllActiveBookedDates(carId);
+        return allActiveBookedDates.contains(date);
     }
 }

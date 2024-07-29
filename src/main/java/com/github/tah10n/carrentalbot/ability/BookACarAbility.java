@@ -11,7 +11,6 @@ import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -23,14 +22,14 @@ import java.util.*;
 import java.util.function.Predicate;
 
 @Slf4j
-public class RentACarAbility implements AbilityExtension {
+public class BookACarAbility implements AbilityExtension {
     private final AbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
     private final MessagesUtil messagesUtil;
 
-    public RentACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
+    public BookACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
@@ -38,7 +37,7 @@ public class RentACarAbility implements AbilityExtension {
         this.messagesUtil = messagesUtil;
     }
 
-    public ReplyFlow rentACarFlow() {
+    public ReplyFlow chooseACarFlow() {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
@@ -107,12 +106,10 @@ public class RentACarAbility implements AbilityExtension {
                     LocalDate currentDate = LocalDate.parse(split[4]);
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
                     Car car = carService.addDate(myUserId, carId, date);
-                    StringBuilder stringBuilder = new StringBuilder();
-                    stringBuilder.append(messagesUtil.getMessage("select_dates", language));
-                    stringBuilder.append(car.toString());
-                    stringBuilder.append(". ");
-                    stringBuilder.append(formatDateRangeText(carService.getBookedDates(myUserId, carId), language));
-                    String text = stringBuilder.toString();
+                    String text = messagesUtil.getMessage("select_dates", language) +
+                                  car.toString() +
+                                  ". " +
+                                  formatDateRangeText(carService.getBookedDates(myUserId, carId), language);
 
                     EditMessageText messageText = EditMessageText.builder()
                             .chatId(chatId)
@@ -124,6 +121,51 @@ public class RentACarAbility implements AbilityExtension {
                     bot.getSilent().execute(messageText);
                 })
                 .onlyIf(hasCallbackQueryWith("choose_date"))
+                .build();
+    }
+
+    public ReplyFlow cancelFlow() {
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    Long myUserId = upd.getCallbackQuery().getFrom().getId();
+                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
+                    String[] split = upd.getCallbackQuery().getData().split(":");
+                    String language = split[1];
+                    String carId = split[2];
+                    EditMessageText message = EditMessageText.builder()
+                            .chatId(chatId)
+                            .messageId(messageId)
+                            .text(carService.getCarName(carId))
+                            .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
+                            .build();
+                    carService.clearDates(myUserId, carId);
+
+                    bot.getSilent().execute(message);
+                })
+                .onlyIf(hasCallbackQueryWith("cancel_booking"))
+                .build();
+    }
+
+    public ReplyFlow bookACar() {
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    Long myUserId = upd.getCallbackQuery().getFrom().getId();
+                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    String[] split = upd.getCallbackQuery().getData().split(":");
+                    String language = split[1];
+                    String carId = split[2];
+                    carService.bookACar(myUserId, carId);
+                    carService.clearDates(myUserId, carId);
+                    EditMessageText message = EditMessageText.builder()
+                            .chatId(chatId)
+                            .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                            .text(messagesUtil.getMessage("car_booked", language) + " " + carService.getCarName(carId))
+                            .replyMarkup(keyboardMaker.getBackKeyboard(language))
+                            .build();
+                    bot.getSilent().execute(message);
+                })
+                .onlyIf(hasCallbackQueryWith("book_car"))
                 .build();
     }
 

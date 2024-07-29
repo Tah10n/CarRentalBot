@@ -107,10 +107,12 @@ public class InlineKeyboardMaker {
             List<LocalDate> bookedDates = carService.getBookedDates(myUserId, carId);
 
             String callbackData = ignoreCallbackData;
-            if (date.isBefore(LocalDate.now())) {
+            if (date.isBefore(LocalDate.now().plusDays(1))) {
                 buttonText = buttonText + " ❌";
             } else {
-
+                if (carService.isBookedDate(date, carId)) {
+                    buttonText = buttonText + " ❌";
+                }
                 if (bookedDates != null && bookedDates.contains(date)) {
                     buttonText = buttonText + " ✅";
 
@@ -139,6 +141,10 @@ public class InlineKeyboardMaker {
 
         keyboardRows.add(new InlineKeyboardRow(navigationRow));
 
+        keyboardRows.add(new InlineKeyboardRow(
+                InlineKeyboardButton.builder().text(buttonsUtil.getButton("cancel_booking", language)).callbackData("cancel_booking:" + language + ":" + carId).build(),
+                InlineKeyboardButton.builder().text(buttonsUtil.getButton("book_car", language)).callbackData("book_car:" + language + ":" + carId).build()
+        ));
 
         return InlineKeyboardMarkup.builder()
                 .keyboard(keyboardRows)

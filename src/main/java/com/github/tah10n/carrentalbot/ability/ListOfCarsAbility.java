@@ -75,7 +75,6 @@ public class ListOfCarsAbility implements AbilityExtension {
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
                     .text(car.toString())
-                    .parseMode("HTML")
                     .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
                     .build();
             bot.getSilent().execute(sendMessage);

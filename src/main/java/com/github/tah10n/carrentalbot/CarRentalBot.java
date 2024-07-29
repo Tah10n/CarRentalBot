@@ -2,10 +2,9 @@ package com.github.tah10n.carrentalbot;
 
 import com.github.tah10n.carrentalbot.ability.LanguageAbility;
 import com.github.tah10n.carrentalbot.ability.ListOfCarsAbility;
-import com.github.tah10n.carrentalbot.ability.RentACarAbility;
+import com.github.tah10n.carrentalbot.ability.BookACarAbility;
 import com.github.tah10n.carrentalbot.ability.StartAbility;
 import com.github.tah10n.carrentalbot.config.BotConfig;
-import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
@@ -42,7 +41,7 @@ public class CarRentalBot extends AbilityBot implements SpringLongPollingBot {
                 new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil),
                 new LanguageAbility(this, keyboardMaker, myUserDAO, messagesUtil),
                 new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil),
-                new RentACarAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil)
+                new BookACarAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil)
         );
 
     }
