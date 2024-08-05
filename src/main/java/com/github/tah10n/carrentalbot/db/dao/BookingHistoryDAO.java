@@ -29,7 +29,7 @@ public class BookingHistoryDAO {
         return bookingHistoryRepository.findAllByCarIdAndIsActive(carId, true);
     }
 
-    public List<LocalDate> getAllActiveBookedDates(String carId) {
+    public List<LocalDate> getActiveBookedDates(String carId) {
         List<BookingHistory> allByCarIdAndIsActive = bookingHistoryRepository.findAllByCarIdAndIsActive(carId, true);
         List<LocalDate> dates = allByCarIdAndIsActive.stream().map(BookingHistory::getBookedDates).flatMap(List::stream).collect(Collectors.toList());
         return dates;
@@ -37,5 +37,17 @@ public class BookingHistoryDAO {
 
     public List<BookingHistory> getAllActiveHistory() {
         return bookingHistoryRepository.findAllByIsActive(true);
+    }
+
+    public List<BookingHistory> getActiveBookingsByUserId(Long userId) {
+        return bookingHistoryRepository.findAllByIsActiveAndUserId(true, userId);
+    }
+
+    public void deleteById(String bookId) {
+        bookingHistoryRepository.deleteById(bookId);
+    }
+
+    public List<LocalDate> getAllActiveBookedDates() {
+        return bookingHistoryRepository.findAllByIsActive(true).stream().map(BookingHistory::getBookedDates).flatMap(List::stream).collect(Collectors.toList());
     }
 }

@@ -1,13 +1,15 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.1'
-    id 'io.spring.dependency-management' version '1.1.5'
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'com.bmuschko.docker-spring-boot-application' version '9.4.0'
 }
 
 group = 'com.github.tah10n'
 version = '0.0.1-SNAPSHOT'
 
 java {
+    sourceCompatibility = '17'
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
@@ -31,7 +33,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '3.3.1'
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '3.3.2'
 
     implementation 'org.telegram:telegrambots-springboot-longpolling-starter:7.7.1'
     implementation 'org.telegram:telegrambots-abilities:7.7.1'
@@ -40,4 +42,12 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+docker {
+    springBootApplication {
+        baseImage = 'openjdk:17-alpine'
+        ports = [8080]
+        images = ['tah10n/car-rental-bot:latest']
+    }
 }

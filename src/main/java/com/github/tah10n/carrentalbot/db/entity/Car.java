@@ -26,6 +26,7 @@ public class Car {
     private String model;
     private Description description;
     private int pricePerDay;
+    private String photoId;
     private Map<Long, List<LocalDate>> map;
 
     @Override

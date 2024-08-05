@@ -11,6 +11,7 @@ import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -47,19 +48,35 @@ public class BookACarAbility implements AbilityExtension {
                     String lang = myUser.getLanguage();
                     LocalDate date = LocalDate.now();
                     String text = messagesUtil.getMessage("select_dates", lang) + " " + carService.getCarName(carId);
-                    EditMessageText message = EditMessageText.builder()
-                            .chatId(chatId)
-                            .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                            .text(text)
-                            .replyMarkup(keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId))
-                            .build();
+                    if (carService.hasCarPhoto(carId)) {
+                        EditMessageCaption message = EditMessageCaption.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .caption(text)
+                                .replyMarkup(keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId))
+                                .build();
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
+                    } else {
+                        EditMessageText message = EditMessageText.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .text(text)
+                                .replyMarkup(keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId))
+                                .build();
 
-                    try {
-                        bot.getTelegramClient().execute(message);
-                    } catch (TelegramApiException e) {
-                       log.error(e.getMessage());
-                       log.error(Arrays.toString(e.getStackTrace()));
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
                     }
+
                 })
                 .onlyIf(hasCallbackQueryWith("choose_car"))
                 .build();
@@ -82,9 +99,25 @@ public class BookACarAbility implements AbilityExtension {
                             .build();
                     if (changeMonth.equals("prev")) {
                         currentDate = currentDate.minusMonths(1);
+                        if (currentDate.isBefore(LocalDate.now().minusMonths(1))) {
+                            AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                                    .callbackQueryId(upd.getCallbackQuery().getId())
+                                    .text(messagesUtil.getMessage("select_dates", language))
+                                    .build();
+                            bot.getSilent().execute(answerCallbackQuery);
+                            return;
+                        }
                         messageReplyMarkup.setReplyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId));
                     } else {
                         currentDate = currentDate.plusMonths(1);
+                        if (currentDate.isAfter(LocalDate.now().plusMonths(4))) {
+                            AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                                    .callbackQueryId(upd.getCallbackQuery().getId())
+                                    .text(messagesUtil.getMessage("select_dates", language))
+                                    .build();
+                            bot.getSilent().execute(answerCallbackQuery);
+                            return;
+                        }
                         messageReplyMarkup.setReplyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId));
                     }
 
@@ -107,18 +140,38 @@ public class BookACarAbility implements AbilityExtension {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
                     Car car = carService.addDate(myUserId, carId, date);
                     String text = messagesUtil.getMessage("select_dates", language) +
-                                  car.toString() +
-                                  ". " +
-                                  formatDateRangeText(carService.getBookedDates(myUserId, carId), language);
+                            car.toString() +
+                            ". " +
+                            formatDateRangeText(carService.getBookedDates(myUserId, carId), language);
 
-                    EditMessageText messageText = EditMessageText.builder()
-                            .chatId(chatId)
-                            .messageId(messageId)
-                            .text(text)
-                            .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId))
-                            .build();
+                    if (carService.hasCarPhoto(carId)) {
+                        EditMessageCaption message = EditMessageCaption.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .caption(text)
+                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId))
+                                .build();
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
+                    } else {
+                        EditMessageText message = EditMessageText.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .text(text)
+                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId))
+                                .build();
 
-                    bot.getSilent().execute(messageText);
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
+                    }
                 })
                 .onlyIf(hasCallbackQueryWith("choose_date"))
                 .build();
@@ -133,15 +186,37 @@ public class BookACarAbility implements AbilityExtension {
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     String language = split[1];
                     String carId = split[2];
-                    EditMessageText message = EditMessageText.builder()
-                            .chatId(chatId)
-                            .messageId(messageId)
-                            .text(carService.getCarName(carId))
-                            .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
-                            .build();
                     carService.clearDates(myUserId, carId);
+                    String text = carService.getCarName(carId);
+                    if (carService.hasCarPhoto(carId)) {
+                        EditMessageCaption message = EditMessageCaption.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .caption(text)
+                                .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
+                                .build();
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
+                    } else {
+                        EditMessageText message = EditMessageText.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .text(text)
+                                .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
+                                .build();
 
-                    bot.getSilent().execute(message);
+                        try {
+                            bot.getTelegramClient().execute(message);
+                        } catch (TelegramApiException e) {
+                            log.error(e.getMessage());
+                            log.error(Arrays.toString(e.getStackTrace()));
+                        }
+                    }
+
                 })
                 .onlyIf(hasCallbackQueryWith("cancel_booking"))
                 .build();
@@ -155,7 +230,23 @@ public class BookACarAbility implements AbilityExtension {
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     String language = split[1];
                     String carId = split[2];
-                    carService.bookACar(myUserId, carId);
+                    try {
+                        carService.bookACar(myUserId, carId);
+                    } catch (NullPointerException | IllegalArgumentException e) {
+                        log.error(e.getMessage(), e);
+                        carService.clearDates(myUserId, carId);
+                        String text = messagesUtil.getMessage("select_dates", language) + " " + carService.getCarName(carId);
+                        EditMessageText message = EditMessageText.builder()
+                                .chatId(chatId)
+                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
+                                .text(text)
+                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, LocalDate.now(), myUserId))
+                                .build();
+                        bot.getSilent().execute(message);
+
+                        bot.getSilent().send(messagesUtil.getMessage("car_not_booked", language), myUserId);
+                        return;
+                    }
                     carService.clearDates(myUserId, carId);
                     EditMessageText message = EditMessageText.builder()
                             .chatId(chatId)

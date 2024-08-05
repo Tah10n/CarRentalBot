@@ -12,4 +12,6 @@ public interface BookingHistoryRepository extends MongoRepository<BookingHistory
     public List<BookingHistory> findAllByCarIdAndIsActive(String carId, boolean isActive);
 
     List<BookingHistory> findAllByIsActive(boolean isActive);
+
+    List<BookingHistory> findAllByIsActiveAndUserId(boolean isActive, Long userId);
 }

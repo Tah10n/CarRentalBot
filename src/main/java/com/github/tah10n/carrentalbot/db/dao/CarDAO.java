@@ -35,4 +35,7 @@ public class CarDAO {
     }
 
 
+    public Car getByModel(String model) {
+        return carRepository.findByModel(model);
+    }
 }

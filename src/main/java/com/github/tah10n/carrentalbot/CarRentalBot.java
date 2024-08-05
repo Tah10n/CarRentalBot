@@ -38,7 +38,7 @@ public class CarRentalBot extends AbilityBot implements SpringLongPollingBot {
         this.messagesUtil = messagesUtil;
 
         addExtensions(
-                new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil),
+                new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil, carService),
                 new LanguageAbility(this, keyboardMaker, myUserDAO, messagesUtil),
                 new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil),
                 new BookACarAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil)
