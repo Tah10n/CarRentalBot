@@ -27,21 +27,19 @@ public class CarRentalBot extends AbilityBot implements SpringLongPollingBot {
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
-    private final MessagesUtil messagesUtil;
 
-    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
+    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         super(telegramClient, botConfig.getName());
         this.botConfig = botConfig;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
         this.carService = carService;
-        this.messagesUtil = messagesUtil;
 
         addExtensions(
-                new StartAbility(this, keyboardMaker, myUserDAO, messagesUtil, carService),
-                new LanguageAbility(this, keyboardMaker, myUserDAO, messagesUtil),
-                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil),
-                new BookACarAbility(this, keyboardMaker, myUserDAO, carService, messagesUtil)
+                new StartAbility(this, keyboardMaker, myUserDAO, carService),
+                new LanguageAbility(this, keyboardMaker, myUserDAO),
+                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService),
+                new BookACarAbility(this, keyboardMaker, myUserDAO, carService)
         );
 
     }

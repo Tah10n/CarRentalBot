@@ -5,22 +5,23 @@ import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
-import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Predicate;
+
+import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
 @Slf4j
 public class BookACarAbility implements AbilityExtension {
@@ -28,54 +29,27 @@ public class BookACarAbility implements AbilityExtension {
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
-    private final MessagesUtil messagesUtil;
 
-    public BookACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
+    public BookACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
         this.carService = carService;
-        this.messagesUtil = messagesUtil;
     }
 
     public ReplyFlow chooseACarFlow() {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
-                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    Long chatId = upd.getCallbackQuery().getFrom().getId();
+                    Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
                     String carId = upd.getCallbackQuery().getData().split(":")[1];
                     MyUser myUser = myUserDAO.getById(myUserId);
                     String lang = myUser.getLanguage();
                     LocalDate date = LocalDate.now();
-                    String text = messagesUtil.getMessage("select_dates", lang) + " " + carService.getCarName(carId);
-                    if (carService.hasCarPhoto(carId)) {
-                        EditMessageCaption message = EditMessageCaption.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .caption(text)
-                                .replyMarkup(keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId))
-                                .build();
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
-                    } else {
-                        EditMessageText message = EditMessageText.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .text(text)
-                                .replyMarkup(keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId))
-                                .build();
-
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
-                    }
+                    String text = getMessage("select_dates", lang) + " " + carService.getCarName(carId);
+                    InlineKeyboardMarkup calendarKeyboard = keyboardMaker.getCalendarKeyboard(lang, carId, date, myUserId);
+                    editMessage(bot, upd, chatId, messageId, text, calendarKeyboard);
 
                 })
                 .onlyIf(hasCallbackQueryWith("choose_car"))
@@ -102,7 +76,7 @@ public class BookACarAbility implements AbilityExtension {
                         if (currentDate.isBefore(LocalDate.now().minusMonths(1))) {
                             AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
                                     .callbackQueryId(upd.getCallbackQuery().getId())
-                                    .text(messagesUtil.getMessage("select_dates", language))
+                                    .text(getMessage("select_dates", language))
                                     .build();
                             bot.getSilent().execute(answerCallbackQuery);
                             return;
@@ -113,7 +87,7 @@ public class BookACarAbility implements AbilityExtension {
                         if (currentDate.isAfter(LocalDate.now().plusMonths(4))) {
                             AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
                                     .callbackQueryId(upd.getCallbackQuery().getId())
-                                    .text(messagesUtil.getMessage("select_dates", language))
+                                    .text(getMessage("select_dates", language))
                                     .build();
                             bot.getSilent().execute(answerCallbackQuery);
                             return;
@@ -127,10 +101,10 @@ public class BookACarAbility implements AbilityExtension {
                 .build();
     }
 
-    public ReplyFlow chooseDayFlow() {
+    public ReplyFlow chooseDaysFlow() {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
-                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    Long chatId = upd.getCallbackQuery().getFrom().getId();
                     Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     LocalDate date = LocalDate.parse(split[1]);
@@ -138,40 +112,25 @@ public class BookACarAbility implements AbilityExtension {
                     String carId = split[3];
                     LocalDate currentDate = LocalDate.parse(split[4]);
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
-                    Car car = carService.addDate(myUserId, carId, date);
-                    String text = messagesUtil.getMessage("select_dates", language) +
-                            car.toString() +
-                            ". " +
-                            formatDateRangeText(carService.getBookedDates(myUserId, carId), language);
+                    carService.addDate(myUserId, carId, date);
+                    List<LocalDate> chosenDates = carService.getChosenDates(myUserId, carId);
 
-                    if (carService.hasCarPhoto(carId)) {
-                        EditMessageCaption message = EditMessageCaption.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .caption(text)
-                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId))
+                    if (carService.checkIsChosenDatesAlreadyOccupied(chosenDates, carId)) {
+                        AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                                .callbackQueryId(upd.getCallbackQuery().getId())
+                                .text(getMessage("select_unoccupied_dates", language))
                                 .build();
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
+                        bot.getSilent().execute(answerCallbackQuery);
+                        carService.deleteEndDate(myUserId, carId);
                     } else {
-                        EditMessageText message = EditMessageText.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .text(text)
-                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId))
-                                .build();
-
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
+                        String text = getMessage("select_dates", language) +
+                                carService.getCarName(carId) +
+                                ". " +
+                                formatDateRangeText(chosenDates, language);
+                        InlineKeyboardMarkup calendarKeyboard = keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId);
+                        editMessage(bot, upd, chatId, messageId, text, calendarKeyboard);
                     }
+
                 })
                 .onlyIf(hasCallbackQueryWith("choose_date"))
                 .build();
@@ -181,41 +140,15 @@ public class BookACarAbility implements AbilityExtension {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
-                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    Long chatId = upd.getCallbackQuery().getFrom().getId();
                     Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     String language = split[1];
                     String carId = split[2];
                     carService.clearDates(myUserId, carId);
-                    String text = carService.getCarName(carId);
-                    if (carService.hasCarPhoto(carId)) {
-                        EditMessageCaption message = EditMessageCaption.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .caption(text)
-                                .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
-                                .build();
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
-                    } else {
-                        EditMessageText message = EditMessageText.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .text(text)
-                                .replyMarkup(keyboardMaker.getChooseCarKeyboard(carId, language))
-                                .build();
-
-                        try {
-                            bot.getTelegramClient().execute(message);
-                        } catch (TelegramApiException e) {
-                            log.error(e.getMessage());
-                            log.error(Arrays.toString(e.getStackTrace()));
-                        }
-                    }
+                    String text = carService.getCarById(carId).toString();
+                    InlineKeyboardMarkup keyboard = keyboardMaker.getChooseCarKeyboard(carId, language);
+                    editMessage(bot, upd, chatId, messageId, text, keyboard);
 
                 })
                 .onlyIf(hasCallbackQueryWith("cancel_booking"))
@@ -226,7 +159,8 @@ public class BookACarAbility implements AbilityExtension {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
-                    String chatId = upd.getCallbackQuery().getFrom().getId().toString();
+                    Long chatId = upd.getCallbackQuery().getFrom().getId();
+                    Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     String language = split[1];
                     String carId = split[2];
@@ -235,26 +169,23 @@ public class BookACarAbility implements AbilityExtension {
                     } catch (NullPointerException | IllegalArgumentException e) {
                         log.error(e.getMessage(), e);
                         carService.clearDates(myUserId, carId);
-                        String text = messagesUtil.getMessage("select_dates", language) + " " + carService.getCarName(carId);
-                        EditMessageText message = EditMessageText.builder()
-                                .chatId(chatId)
-                                .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                                .text(text)
-                                .replyMarkup(keyboardMaker.getCalendarKeyboard(language, carId, LocalDate.now(), myUserId))
-                                .build();
-                        bot.getSilent().execute(message);
+                        String text = getMessage("select_dates", language) + " " + carService.getCarName(carId);
+                        InlineKeyboardMarkup keyboard = keyboardMaker.getCalendarKeyboard(language, carId, LocalDate.now(), myUserId);
+                        editMessage(bot, upd, chatId, messageId, text, keyboard);
 
-                        bot.getSilent().send(messagesUtil.getMessage("car_not_booked", language), myUserId);
+                        bot.getSilent().send(getMessage("car_not_booked", language), myUserId);
                         return;
                     }
                     carService.clearDates(myUserId, carId);
-                    EditMessageText message = EditMessageText.builder()
+                    String carBookedText = getMessage("car_booked", language) + " " + carService.getCarName(carId);
+                    InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(language);
+
+                    SendMessage sendMessage = SendMessage.builder()
                             .chatId(chatId)
-                            .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                            .text(messagesUtil.getMessage("car_booked", language) + " " + carService.getCarName(carId))
-                            .replyMarkup(keyboardMaker.getBackKeyboard(language))
+                            .text(carBookedText)
+                            .replyMarkup(backKeyboard)
                             .build();
-                    bot.getSilent().execute(message);
+                    bot.getSilent().execute(sendMessage);
                 })
                 .onlyIf(hasCallbackQueryWith("book_car"))
                 .build();
@@ -262,14 +193,14 @@ public class BookACarAbility implements AbilityExtension {
 
     private String formatDateRangeText(List<LocalDate> dates, String lang) {
         if (dates == null || dates.isEmpty()) {
-            return messagesUtil.getMessage("dates_not_selected", lang);
+            return getMessage("dates_not_selected", lang);
         }
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM");
         List<LocalDate> sortedDates = new ArrayList<>(dates);
         Collections.sort(sortedDates);
 
-        StringBuilder result = new StringBuilder(messagesUtil.getMessage("dates_selected", lang));
+        StringBuilder result = new StringBuilder(getMessage("dates_selected", lang));
         LocalDate rangeStart = sortedDates.get(0);
         LocalDate rangeEnd = rangeStart;
 
@@ -289,6 +220,22 @@ public class BookACarAbility implements AbilityExtension {
         return result.toString();
     }
 
+    public ReplyFlow backButton() {
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    Long chatId = upd.getCallbackQuery().getFrom().getId();
+                    MyUser myUser = myUserDAO.getById(chatId);
+                    Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
+                    String lang = myUser.getLanguage();
+                    String text = getMessage("start", lang);
+                    InlineKeyboardMarkup startKeyboard = keyboardMaker.getStartKeyboard(lang, myUser.getId());
+                    editMessage(bot, upd, chatId, messageId, text, startKeyboard);
+
+                })
+                .onlyIf(hasCallbackQueryWith("back"))
+                .build();
+    }
+
     public ReplyFlow ignore() {
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
@@ -297,7 +244,7 @@ public class BookACarAbility implements AbilityExtension {
                     String lang = myUser.getLanguage();
                     AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
                             .callbackQueryId(upd.getCallbackQuery().getId())
-                            .text(messagesUtil.getMessage("select_dates", lang))
+                            .text(getMessage("select_dates", lang))
                             .build();
                     bot.getSilent().execute(answerCallbackQuery);
                 })

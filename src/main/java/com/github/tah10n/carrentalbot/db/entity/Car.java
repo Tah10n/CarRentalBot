@@ -31,7 +31,7 @@ public class Car {
 
     @Override
     public String toString() {
-        return model;
+        return model + "\n" + description.getRuDescription() + "\n" +"Цена за день " + pricePerDay;
     }
 
     public void setDescription(String description, String lang) {

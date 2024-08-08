@@ -1,7 +1,6 @@
 package com.github.tah10n.carrentalbot.keyboards;
 
 import com.github.tah10n.carrentalbot.service.CarService;
-import com.github.tah10n.carrentalbot.utils.ButtonsUtil;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -15,13 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import static com.github.tah10n.carrentalbot.utils.ButtonsUtil.getButton;
+
 @Component
 public class InlineKeyboardMaker {
-    private final ButtonsUtil buttonsUtil;
     private final CarService carService;
 
-    public InlineKeyboardMaker(ButtonsUtil buttonsUtil, CarService carService) {
-        this.buttonsUtil = buttonsUtil;
+    public InlineKeyboardMaker(CarService carService) {
         this.carService = carService;
     }
 
@@ -29,17 +28,17 @@ public class InlineKeyboardMaker {
         InlineKeyboardMarkup keyboardMarkup = InlineKeyboardMarkup.builder().build();
 
         InlineKeyboardRow row = new InlineKeyboardRow();
-        row.add(InlineKeyboardButton.builder().text(buttonsUtil.getButton("list_of_cars", lang)).callbackData("list_of_cars").build());
+        row.add(InlineKeyboardButton.builder().text(getButton("list_of_cars", lang)).callbackData("list_of_cars").build());
         if (carService.isUserHasBookings(myUserId)) {
-            InlineKeyboardButton bookingsButton = InlineKeyboardButton.builder().text(buttonsUtil.getButton("my_bookings", lang))
+            InlineKeyboardButton bookingsButton = InlineKeyboardButton.builder().text(getButton("my_bookings", lang))
                     .callbackData("my_bookings").build();
             row.add(bookingsButton);
         }
 
         InlineKeyboardRow row2 = new InlineKeyboardRow();
-        row2.add(InlineKeyboardButton.builder().text(buttonsUtil.getButton("help", lang)).callbackData("help").build());
-        row2.add(InlineKeyboardButton.builder().text(buttonsUtil.getButton("rules", lang)).callbackData("rules").build());
-        row2.add(InlineKeyboardButton.builder().text(buttonsUtil.getButton("contacts", lang)).callbackData("contacts").build());
+        row2.add(InlineKeyboardButton.builder().text(getButton("help", lang)).callbackData("help").build());
+        row2.add(InlineKeyboardButton.builder().text(getButton("rules", lang)).callbackData("rules").build());
+        row2.add(InlineKeyboardButton.builder().text(getButton("contacts", lang)).callbackData("contacts").build());
 
         keyboardMarkup.setKeyboard(List.of(row, row2));
         return keyboardMarkup;
@@ -57,21 +56,21 @@ public class InlineKeyboardMaker {
     public InlineKeyboardMarkup getBackKeyboard(String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
-                        InlineKeyboardButton.builder().text(buttonsUtil.getButton("back", lang)).callbackData("back").build()
+                        InlineKeyboardButton.builder().text(getButton("back", lang)).callbackData("back").build()
                 )).build();
     }
 
     public InlineKeyboardMarkup getChooseCarKeyboard(String carId, String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
-                        InlineKeyboardButton.builder().text(buttonsUtil.getButton("choose_car", lang)).callbackData("choose_car:" + carId).build()
+                        InlineKeyboardButton.builder().text(getButton("choose_car", lang)).callbackData("choose_car:" + carId).build()
                 )).build();
     }
 
     public InlineKeyboardMarkup getAddCarKeyboard(String language) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
-                        InlineKeyboardButton.builder().text(buttonsUtil.getButton("add_car", language)).callbackData("add_car").build()
+                        InlineKeyboardButton.builder().text(getButton("add_car", language)).callbackData("add_car").build()
                 )).build();
     }
 
@@ -112,7 +111,7 @@ public class InlineKeyboardMaker {
             String buttonText = String.valueOf(day);
             LocalDate date = yearMonth.atDay(day);
 
-            List<LocalDate> bookedDates = carService.getBookedDates(myUserId, carId);
+            List<LocalDate> chosenDates = carService.getChosenDates(myUserId, carId);
 
             String callbackData = ignoreCallbackData;
             if (date.isBefore(LocalDate.now().plusDays(1))) {
@@ -120,7 +119,7 @@ public class InlineKeyboardMaker {
             } else if (carService.isBookedDate(date, carId)) {
                 buttonText = buttonText + " ❌";
             } else {
-                if (bookedDates != null && bookedDates.contains(date)) {
+                if (chosenDates != null && chosenDates.contains(date)) {
                     buttonText = buttonText + " ✅";
                 }
                 callbackData = "choose_date:" + date + ":" + language + ":" + carId + ":" + currentDate;
@@ -148,8 +147,8 @@ public class InlineKeyboardMaker {
         keyboardRows.add(new InlineKeyboardRow(navigationRow));
 
         keyboardRows.add(new InlineKeyboardRow(
-                InlineKeyboardButton.builder().text(buttonsUtil.getButton("cancel_booking", language)).callbackData("cancel_booking:" + language + ":" + carId).build(),
-                InlineKeyboardButton.builder().text(buttonsUtil.getButton("book_car", language)).callbackData("book_car:" + language + ":" + carId).build()
+                InlineKeyboardButton.builder().text(getButton("cancel_booking", language)).callbackData("cancel_booking:" + language + ":" + carId).build(),
+                InlineKeyboardButton.builder().text(getButton("book_car", language)).callbackData("book_car:" + language + ":" + carId).build()
         ));
 
         return InlineKeyboardMarkup.builder()
@@ -160,7 +159,7 @@ public class InlineKeyboardMaker {
     public InlineKeyboardMarkup getDeleteBookingKeyboard(String bookId, String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
-                        InlineKeyboardButton.builder().text(buttonsUtil.getButton("delete_booking", lang)).callbackData("delete_booking:" + bookId).build()
+                        InlineKeyboardButton.builder().text(getButton("delete_booking", lang)).callbackData("delete_booking:" + bookId).build()
                 ))
                 .build();
     }

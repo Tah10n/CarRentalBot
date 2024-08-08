@@ -18,19 +18,18 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.function.Predicate;
 
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 public class LanguageAbility implements AbilityExtension {
     private final AbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
-    private final MessagesUtil messagesUtils;
 
-    public LanguageAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, MessagesUtil messagesUtils) {
+    public LanguageAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
-        this.messagesUtils = messagesUtils;
     }
 
     public Ability languageCommand() {
@@ -43,7 +42,7 @@ public class LanguageAbility implements AbilityExtension {
                 .action(ctx -> {
                     MyUser myUser = myUserDAO.getById(ctx.user().getId());
                     String lang = myUser.getLanguage();
-                    String text = messagesUtils.getMessage("select_language", lang);
+                    String text = getMessage("select_language", lang);
                     SendMessage message = SendMessage.builder()
                             .chatId(ctx.chatId().toString())
                             .text(text)
@@ -65,7 +64,7 @@ public class LanguageAbility implements AbilityExtension {
                     MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
                     myUser.setLanguage(language);
                     myUserDAO.save(myUser);
-                    String text = messagesUtils.getMessage("language_changed",language);
+                    String text = getMessage("language_changed",language);
                     bot.getSilent().execute(DeleteMessage.builder().chatId(getChatId(upd)).messageId(upd.getCallbackQuery().getMessage().getMessageId()).build());
                     bot.getSilent().send(text, getChatId(upd));
                 })

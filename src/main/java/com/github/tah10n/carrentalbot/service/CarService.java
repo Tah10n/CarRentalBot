@@ -4,15 +4,15 @@ import com.github.tah10n.carrentalbot.db.dao.BookingHistoryDAO;
 import com.github.tah10n.carrentalbot.db.dao.CarDAO;
 import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.Car;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
 @Service
 @Transactional
@@ -38,37 +38,61 @@ public class CarService {
         return true;
     }
 
-    public List<LocalDate> getBookedDates(Long userId, String carId) {
+    public List<LocalDate> getChosenDates(Long userId, String carId) {
         Car car = carDAO.getById(carId);
-        Map<Long, List<LocalDate>> map = car.getMap();
-        if (map != null) {
-            return map.get(userId);
-        } else {
+        if ((car == null) || (car.getMap() == null)) {
             return Collections.emptyList();
         }
+        List<LocalDate> dateList = car.getMap().get(userId);
+        if(dateList == null) {
+            return Collections.emptyList();
+        }
+        if(dateList.size() == 1) {
+            return Collections.singletonList(dateList.get(0));
+        }
+        var startDate = dateList.get(0);
+        var endDate = dateList.get(1);
+        if (endDate.isBefore(startDate)) {
+            var tmp = endDate;
+            endDate = startDate;
+            startDate = tmp;
+        }
+        return getDates(startDate, endDate);
+    }
+
+    private List<LocalDate> getDates(LocalDate startDate, LocalDate endDate) {
+        List<LocalDate> dates = new ArrayList<>();
+        LocalDate date = startDate;
+        while (!date.isAfter(endDate)) {
+            dates.add(date);
+            date = date.plusDays(1);
+        }
+        return dates;
     }
 
     public String getCarName(String carId) {
         Car car = carDAO.getById(carId);
+        if (car == null) {
+            return getMessage("car_not_found", "ru");
+        }
         return car.getModel();
     }
 
     public Car addDate(Long myUserId, String carId, LocalDate date) {
         Car car = carDAO.getById(carId);
         Map<Long, List<LocalDate>> map = car.getMap();
-        if (map == null) {
-            map = new HashMap<>();
-        }
-        if (!map.containsKey(myUserId)) {
-            map.put(myUserId, List.of(date));
+        List<LocalDate> localDates = map.get(myUserId);
+        if (localDates == null || localDates.isEmpty()) {
+            localDates = new ArrayList<>();
+            localDates.add(date);
+        } else if (localDates.size() == 1 && !localDates.get(0).equals(date)) {
+            localDates.add(date);
         } else {
-            List<LocalDate> bookedDates = map.get(myUserId);
-            if (bookedDates.contains(date)) {
-                bookedDates.remove(date);
-            } else {
-                bookedDates.add(date);
-            }
+            localDates.clear();
+            localDates.add(date);
         }
+
+        map.put(myUserId, localDates);
         car.setMap(map);
         carDAO.save(car);
         return car;
@@ -95,17 +119,17 @@ public class CarService {
         bookingHistory.setUserId(myUserId);
         bookingHistory.setBookedDates(bookedDates);
         bookingHistory.setActive(true);
-        if (checkIsBookedDatesAlreadyOccupied(bookedDates)) {
-            throw new IllegalArgumentException("Car is not available");
+        if (checkIsChosenDatesAlreadyOccupied(bookedDates, carId)) {
+            throw new IllegalArgumentException("Dates is not available");
         } else {
             bookingHistoryDAO.save(bookingHistory);
         }
     }
 
-    private boolean checkIsBookedDatesAlreadyOccupied(List<LocalDate> bookedDates) {
-        List<LocalDate> allActiveBookedDates = bookingHistoryDAO.getAllActiveBookedDates();
-        for (LocalDate bookedDate : bookedDates) {
-            if (allActiveBookedDates.contains(bookedDate)) {
+    public boolean checkIsChosenDatesAlreadyOccupied(@NotNull List<LocalDate> chosenDates, String carId) {
+        List<LocalDate> activeBookedDates = bookingHistoryDAO.getActiveBookedDatesByCarId(carId);
+        for (LocalDate date : chosenDates) {
+            if (activeBookedDates.contains(date)) {
                 return true;
             }
         }
@@ -154,5 +178,23 @@ public class CarService {
     public boolean hasCarPhoto(String carId) {
         return carDAO.getById(carId).getPhotoId() != null;
 
+    }
+
+    public Car getCarById(String carId) {
+        return carDAO.getById(carId);
+
+    }
+
+    public void deleteEndDate(Long myUserId, String carId) {
+        Car car = carDAO.getById(carId);
+        Map<Long, List<LocalDate>> map = car.getMap();
+        List<LocalDate> localDates = map.get(myUserId);
+        if (localDates == null || localDates.isEmpty()) {
+            return;
+        }
+        localDates.remove(localDates.size() - 1);
+        map.put(myUserId, localDates);
+        car.setMap(map);
+        carDAO.save(car);
     }
 }

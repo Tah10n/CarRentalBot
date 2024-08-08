@@ -5,9 +5,9 @@ import org.springframework.stereotype.Component;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-@Component
+
 public class MessagesUtil {
-    public String getMessage(String key, String lang) {
+    public static String getMessage(String key, String lang) {
         ResourceBundle messages = ResourceBundle.getBundle("messages", new Locale(lang));
 
         if (!messages.containsKey(key) || messages.getString(key).equals("null") || messages.getString(key).isEmpty()) {

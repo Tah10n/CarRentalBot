@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 @Slf4j
@@ -37,14 +38,12 @@ public class ListOfCarsAbility implements AbilityExtension {
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
-    private final MessagesUtil messagesUtil;
 
-    public ListOfCarsAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, MessagesUtil messagesUtil) {
+    public ListOfCarsAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
         this.carService = carService;
-        this.messagesUtil = messagesUtil;
     }
 
     public ReplyFlow listOfCars() {
@@ -61,7 +60,7 @@ public class ListOfCarsAbility implements AbilityExtension {
         if (Boolean.TRUE.equals(myUser.getIsAdmin())) {
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
-                    .text(messagesUtil.getMessage("count_of_cars", myUser.getLanguage()) + cars.size())
+                    .text(getMessage("count_of_cars", myUser.getLanguage()) + cars.size())
                     .replyMarkup(keyboardMaker.getAddCarKeyboard(myUser.getLanguage()))
                     .build();
 
@@ -69,7 +68,7 @@ public class ListOfCarsAbility implements AbilityExtension {
         }
 
         if (cars.isEmpty()) {
-            String text = messagesUtil.getMessage("no_cars", upd.getCallbackQuery().getFrom().getLanguageCode());
+            String text = getMessage("no_cars", upd.getCallbackQuery().getFrom().getLanguageCode());
 
             bot.getSilent().send(text, getChatId(upd));
             return;
@@ -84,7 +83,7 @@ public class ListOfCarsAbility implements AbilityExtension {
         bot.getSilent().execute(deleteMessage);
 
         for (Car car : cars) {
-            if(car.getPhotoId() != null) {
+            if (car.getPhotoId() != null) {
                 SendPhoto message = SendPhoto.builder()
                         .chatId(getChatId(upd))
                         .photo(new InputFile(car.getPhotoId()))
@@ -112,17 +111,19 @@ public class ListOfCarsAbility implements AbilityExtension {
 
     public ReplyFlow addCarButton() {
 
-        Car car = new Car();
+        AtomicReference<Car> carAtomicReference = new AtomicReference<>();
+
         ReplyFlow enterCarDescription = ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
                     Long chatId = upd.getMessage().getFrom().getId();
                     MyUser myUser = myUserDAO.getById(chatId);
                     String language = myUser.getLanguage();
+                    Car car = carAtomicReference.get();
                     car.setDescription(upd.getMessage().getText(), language);
                     car.setMap(new HashMap<>());
 
                     if (carService.addCar(car)) {
-                        String text = messagesUtil.getMessage("car_added", language);
+                        String text = getMessage("car_added", language);
                         SendMessage message = SendMessage.builder()
                                 .chatId(chatId)
                                 .text(text)
@@ -131,10 +132,24 @@ public class ListOfCarsAbility implements AbilityExtension {
                         bot.getSilent().execute(message);
 
                     } else {
-                        bot.getSilent().send(messagesUtil.getMessage("car_not_added", language), chatId);
+                        bot.getSilent().send(getMessage("car_not_added", language), chatId);
                     }
                 })
                 .onlyIf(isReplyToMessage("enter_car_description"))
+                .build();
+
+        ReplyFlow enterCarPrice = ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    MyUser myUser = myUserDAO.getById(upd.getMessage().getFrom().getId());
+                    String language = myUser.getLanguage();
+                    Long chatId = upd.getMessage().getFrom().getId();
+                    Car car = carAtomicReference.get();
+                    car.setPricePerDay(Integer.parseInt(upd.getMessage().getText()));
+                    carAtomicReference.set(car);
+                    bot.getSilent().forceReply(getMessage("enter_car_description", language), chatId);
+                })
+                .onlyIf(isReplyToMessage("enter_car_price"))
+                .next(enterCarDescription)
                 .build();
 
         ReplyFlow enterCarName = ReplyFlow.builder(abilityBot.getDb())
@@ -142,12 +157,13 @@ public class ListOfCarsAbility implements AbilityExtension {
                     MyUser myUser = myUserDAO.getById(upd.getMessage().getFrom().getId());
                     String language = myUser.getLanguage();
                     Long chatId = upd.getMessage().getFrom().getId();
+                    Car car = carAtomicReference.get();
                     car.setModel(upd.getMessage().getText());
-
-                    bot.getSilent().forceReply(messagesUtil.getMessage("enter_car_description", language), chatId);
+                    carAtomicReference.set(car);
+                    bot.getSilent().forceReply(getMessage("enter_car_price", language), chatId);
                 })
                 .onlyIf(isReplyToMessage("enter_car_name"))
-                .next(enterCarDescription)
+                .next(enterCarPrice)
                 .build();
 
         ReplyFlow enterCarPhoto = ReplyFlow.builder(abilityBot.getDb())
@@ -155,12 +171,13 @@ public class ListOfCarsAbility implements AbilityExtension {
                     MyUser myUser = myUserDAO.getById(upd.getMessage().getFrom().getId());
                     String language = myUser.getLanguage();
                     Long chatId = upd.getMessage().getFrom().getId();
+                    Car car = carAtomicReference.get();
                     car.setPhotoId(upd.getMessage().hasPhoto() ? upd.getMessage().getPhoto().stream()
                             .max(Comparator.comparing(PhotoSize::getFileSize))
                             .map(PhotoSize::getFileId)
                             .orElse("") : null);
-
-                    bot.getSilent().forceReply(messagesUtil.getMessage("enter_car_name", language), chatId);
+                    carAtomicReference.set(car);
+                    bot.getSilent().forceReply(getMessage("enter_car_name", language), chatId);
                 })
                 .onlyIf(isReplyToMessage("enter_car_photo"))
                 .next(enterCarName)
@@ -169,10 +186,11 @@ public class ListOfCarsAbility implements AbilityExtension {
 
         return ReplyFlow.builder(abilityBot.getDb())
                 .action((bot, upd) -> {
+                    carAtomicReference.set(new Car());
                     MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
                     String language = myUser.getLanguage();
                     Long chatId = upd.getCallbackQuery().getFrom().getId();
-                    String text = messagesUtil.getMessage("enter_car_photo", language);
+                    String text = getMessage("enter_car_photo", language);
 
                     bot.getSilent().forceReply(text, chatId);
 
@@ -189,7 +207,7 @@ public class ListOfCarsAbility implements AbilityExtension {
             MyUser myUser = myUserDAO.getById(upd.getMessage().getFrom().getId());
             String lang = myUser.getLanguage();
             Message reply = upd.getMessage().getReplyToMessage();
-            return reply.hasText() && reply.getText().equalsIgnoreCase(messagesUtil.getMessage(message, lang));
+            return reply.hasText() && reply.getText().equalsIgnoreCase(getMessage(message, lang));
         };
     }
 
