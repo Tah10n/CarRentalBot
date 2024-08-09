@@ -14,19 +14,25 @@ import org.telegram.telegrambots.abilitybots.api.objects.Locality;
 import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
+import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Stack;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.formatDateRangeText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
@@ -58,7 +64,7 @@ public class StartAbility implements AbilityExtension {
                     if (!myUserDAO.existsById(user.getId())) {
                         myUser = new MyUser(user.getId(), user.getFirstName(), user.getLastName(), user.getUserName(),
                                 false
-                                , false, user.getLanguageCode());
+                                , false, user.getLanguageCode(), new Stack<>());
                         myUserDAO.save(myUser);
                         String greeting = getMessage("greeting", myUser.getLanguage());
                         abilityBot.getSilent().send(greeting, ctx.chatId());
@@ -107,7 +113,11 @@ public class StartAbility implements AbilityExtension {
         String text = getMessage(actionName, lang);
         InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(lang);
 
-        editMessage(bot, upd, chatId, messageId, text, backKeyboard);
+        Message message = editMessage(bot, upd, chatId, messageId, text, backKeyboard);
+        if(message == null) {
+            return;
+        }
+        myUserDAO.addMessageToStack(myUser.getId(),  message.getMessageId());
     }
 
 
@@ -139,11 +149,20 @@ public class StartAbility implements AbilityExtension {
         MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
         String lang = myUser.getLanguage();
         List<BookingHistory> bookingsByUserId = carService.getBookingsByUserId(myUser.getId());
+        if(bookingsByUserId.isEmpty()) {
+            String text = getMessage("no_bookings", lang);
+            AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                    .callbackQueryId(upd.getCallbackQuery().getId())
+                    .text(text)
+                    .build();
+            bot.getSilent().execute(answerCallbackQuery);
+            return;
+        }
+        System.out.println(bookingsByUserId);
         for (BookingHistory book : bookingsByUserId) {
-            String bookedDatesString = book.getBookedDates().stream().sorted()
-                    .map(date -> date.format(DateTimeFormatter.ofPattern("dd.MM.yy")))
-                    .collect(Collectors.joining(", "));
-            String text = carService.getCarName(book.getCarId()) + "\n" + getMessage("your_bookings", lang) + bookedDatesString;
+            List<LocalDate> bookedDates = book.getBookedDates();
+            String bookedDatesString = formatDateRangeText(bookedDates, lang);
+            String text = carService.getCarName(book.getCarId()) + "\n" + bookedDatesString;
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
                     .text(text)

@@ -34,6 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '3.3.2'
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: '3.3.2'
 
     implementation 'org.telegram:telegrambots-springboot-longpolling-starter:7.7.1'
     implementation 'org.telegram:telegrambots-abilities:7.7.1'

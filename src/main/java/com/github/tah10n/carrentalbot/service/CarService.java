@@ -107,20 +107,18 @@ public class CarService {
     }
 
     public void bookACar(Long myUserId, String carId) {
-        Car car = carDAO.getById(carId);
-        Map<Long, List<LocalDate>> map = car.getMap();
 
-        List<LocalDate> bookedDates = map.get(myUserId);
-        if (bookedDates == null) {
+        List<LocalDate> chosenDates = getChosenDates(myUserId, carId);
+        if (chosenDates == null || chosenDates.isEmpty()) {
             throw new NullPointerException("Booked dates is null");
         }
         BookingHistory bookingHistory = new BookingHistory();
         bookingHistory.setCarId(carId);
         bookingHistory.setUserId(myUserId);
-        bookingHistory.setBookedDates(bookedDates);
+        bookingHistory.setBookedDates(chosenDates);
         bookingHistory.setActive(true);
-        if (checkIsChosenDatesAlreadyOccupied(bookedDates, carId)) {
-            throw new IllegalArgumentException("Dates is not available");
+        if (checkIsChosenDatesAlreadyOccupied(chosenDates, carId)) {
+            throw new IllegalArgumentException("Dates are already occupied");
         } else {
             bookingHistoryDAO.save(bookingHistory);
         }

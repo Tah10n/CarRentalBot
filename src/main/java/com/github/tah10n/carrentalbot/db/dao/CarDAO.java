@@ -34,7 +34,6 @@ public class CarDAO {
         carRepository.deleteById(id);
     }
 
-
     public Car getByModel(String model) {
         return carRepository.findByModel(model);
     }

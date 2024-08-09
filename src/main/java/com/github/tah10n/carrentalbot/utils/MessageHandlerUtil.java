@@ -9,12 +9,16 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 @Slf4j
 public class MessageHandlerUtil {
 
-    public static void editMessage(BaseAbilityBot bot, Update upd, Long chatId, Integer messageId, String text, InlineKeyboardMarkup keyboard) {
+    private MessageHandlerUtil() {
+    }
+
+    public static Message editMessage(BaseAbilityBot bot, Update upd, Long chatId, Integer messageId, String text, InlineKeyboardMarkup keyboard) {
         Message incomingMessage = null;
         if(upd.hasCallbackQuery()) {
             incomingMessage = (Message) upd.getCallbackQuery().getMessage();
@@ -32,7 +36,7 @@ public class MessageHandlerUtil {
                     .replyMarkup(keyboard)
                     .build();
             try {
-                bot.getTelegramClient().execute(message);
+                return (Message) bot.getTelegramClient().execute(message);
             } catch (TelegramApiException e) {
                 log.error(e.getMessage());
                 log.error(Arrays.toString(e.getStackTrace()));
@@ -46,11 +50,12 @@ public class MessageHandlerUtil {
                     .build();
 
             try {
-                bot.getTelegramClient().execute(message);
+               return (Message) bot.getTelegramClient().execute(message);
             } catch (TelegramApiException e) {
                 log.error(e.getMessage());
                 log.error(Arrays.toString(e.getStackTrace()));
             }
         }
+        return null;
     }
 }

@@ -5,12 +5,9 @@ import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
-import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
-import org.telegram.telegrambots.abilitybots.api.objects.Flag;
-import org.telegram.telegrambots.abilitybots.api.objects.Reply;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -22,10 +19,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -53,6 +47,7 @@ public class ListOfCarsAbility implements AbilityExtension {
                 .build();
     }
 
+
     private void sendListOfCars(BaseAbilityBot bot, Update upd) {
         List<Car> cars = carService.getAllCars();
         MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
@@ -64,7 +59,9 @@ public class ListOfCarsAbility implements AbilityExtension {
                     .replyMarkup(keyboardMaker.getAddCarKeyboard(myUser.getLanguage()))
                     .build();
 
-            bot.getSilent().execute(sendMessage);
+            Optional<Message> executed = bot.getSilent().execute(sendMessage);
+
+            executed.ifPresent(message -> myUserDAO.addMessageToStack(myUser.getId(), message.getMessageId()));
         }
 
         if (cars.isEmpty()) {
@@ -83,29 +80,41 @@ public class ListOfCarsAbility implements AbilityExtension {
         bot.getSilent().execute(deleteMessage);
 
         for (Car car : cars) {
-            if (car.getPhotoId() != null) {
-                SendPhoto message = SendPhoto.builder()
-                        .chatId(getChatId(upd))
-                        .photo(new InputFile(car.getPhotoId()))
-                        .caption(car.toString())
-                        .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
-                        .build();
-                try {
-                    bot.getTelegramClient().execute(message);
-                } catch (TelegramApiException e) {
-                    log.error(e.getMessage());
-                    log.error(Arrays.toString(e.getStackTrace()));
-                }
-            } else {
-                SendMessage message = SendMessage.builder()
-                        .chatId(getChatId(upd))
-                        .text(car.toString())
-                        .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
-                        .build();
-                bot.getSilent().execute(message);
+            sendCarMessage(bot, upd, car, myUser);
+
+
+        }
+    }
+
+    private void sendCarMessage(BaseAbilityBot bot, Update upd, Car car, MyUser myUser) {
+        if (car.getPhotoId() != null) {
+            SendPhoto message = SendPhoto.builder()
+                    .chatId(getChatId(upd))
+                    .photo(new InputFile(car.getPhotoId()))
+                    .caption(car.toString())
+                    .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
+                    .build();
+            try {
+
+                Message executed = bot.getTelegramClient().execute(message);
+                myUserDAO.addMessageToStack(myUser.getId(), executed.getMessageId());
+            } catch (TelegramApiException e) {
+                log.error(e.getMessage());
+                log.error(Arrays.toString(e.getStackTrace()));
             }
-
-
+        } else {
+            SendMessage message = SendMessage.builder()
+                    .chatId(getChatId(upd))
+                    .text(car.toString())
+                    .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
+                    .build();
+            try {
+                Message executed = bot.getTelegramClient().execute(message);
+                myUserDAO.addMessageToStack(myUser.getId(), executed.getMessageId());
+            } catch (TelegramApiException e) {
+                log.error(e.getMessage());
+                log.error(Arrays.toString(e.getStackTrace()));
+            }
         }
     }
 

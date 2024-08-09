@@ -1,7 +1,6 @@
 package com.github.tah10n.carrentalbot.ability;
 
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
-import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
@@ -11,16 +10,17 @@ import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessages;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.formatDateRangeText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
 @Slf4j
@@ -173,51 +173,22 @@ public class BookACarAbility implements AbilityExtension {
                         InlineKeyboardMarkup keyboard = keyboardMaker.getCalendarKeyboard(language, carId, LocalDate.now(), myUserId);
                         editMessage(bot, upd, chatId, messageId, text, keyboard);
 
-                        bot.getSilent().send(getMessage("car_not_booked", language), myUserId);
+                        AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
+                                .callbackQueryId(upd.getCallbackQuery().getId())
+                                .text(getMessage("car_not_booked", language))
+                                .showAlert(true)
+                                .build();
+                        bot.getSilent().execute(answerCallbackQuery);
                         return;
                     }
                     carService.clearDates(myUserId, carId);
                     String carBookedText = getMessage("car_booked", language) + " " + carService.getCarName(carId);
                     InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(language);
 
-                    SendMessage sendMessage = SendMessage.builder()
-                            .chatId(chatId)
-                            .text(carBookedText)
-                            .replyMarkup(backKeyboard)
-                            .build();
-                    bot.getSilent().execute(sendMessage);
+                    editMessage(bot, upd, chatId, messageId, carBookedText, backKeyboard);
                 })
                 .onlyIf(hasCallbackQueryWith("book_car"))
                 .build();
-    }
-
-    private String formatDateRangeText(List<LocalDate> dates, String lang) {
-        if (dates == null || dates.isEmpty()) {
-            return getMessage("dates_not_selected", lang);
-        }
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM");
-        List<LocalDate> sortedDates = new ArrayList<>(dates);
-        Collections.sort(sortedDates);
-
-        StringBuilder result = new StringBuilder(getMessage("dates_selected", lang));
-        LocalDate rangeStart = sortedDates.get(0);
-        LocalDate rangeEnd = rangeStart;
-
-        for (int i = 1; i < sortedDates.size(); i++) {
-            LocalDate currentDate = sortedDates.get(i);
-            if (currentDate.isAfter(rangeEnd.plusDays(1))) {
-                // Если есть промежуток, добавляем текущий диапазон и начинаем новый
-                result.append(formatRange(rangeStart, rangeEnd, formatter)).append(", ");
-                rangeStart = currentDate;
-            }
-            rangeEnd = currentDate;
-        }
-
-        // Добавляем последний диапазон
-        result.append(formatRange(rangeStart, rangeEnd, formatter));
-
-        return result.toString();
     }
 
     public ReplyFlow backButton() {
@@ -225,11 +196,23 @@ public class BookACarAbility implements AbilityExtension {
                 .action((bot, upd) -> {
                     Long chatId = upd.getCallbackQuery().getFrom().getId();
                     MyUser myUser = myUserDAO.getById(chatId);
-                    Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
                     String lang = myUser.getLanguage();
                     String text = getMessage("start", lang);
                     InlineKeyboardMarkup startKeyboard = keyboardMaker.getStartKeyboard(lang, myUser.getId());
-                    editMessage(bot, upd, chatId, messageId, text, startKeyboard);
+                    if (myUserDAO.isMessageStackFilled(myUser.getId())) {
+                        List<Integer> messageList = myUserDAO.popAllMessagesFromStack(myUser.getId());
+                        DeleteMessages deleteMessages = DeleteMessages.builder()
+                                .chatId(chatId.toString())
+                                .messageIds(messageList)
+                                .build();
+
+                        bot.getSilent().execute(deleteMessages);
+                    }
+                    SendMessage sendMessage = SendMessage.builder()
+                            .chatId(chatId)
+                            .text(text)
+                            .replyMarkup(startKeyboard).build();
+                    bot.getSilent().execute(sendMessage);
 
                 })
                 .onlyIf(hasCallbackQueryWith("back"))
@@ -250,14 +233,6 @@ public class BookACarAbility implements AbilityExtension {
                 })
                 .onlyIf(hasCallbackQueryWith("ignore_calendar"))
                 .build();
-    }
-
-    private String formatRange(LocalDate start, LocalDate end, DateTimeFormatter formatter) {
-        if (start.equals(end)) {
-            return start.format(formatter);
-        } else {
-            return start.format(formatter) + " - " + end.format(formatter);
-        }
     }
 
     private Predicate<Update> hasCallbackQueryWith(String string) {

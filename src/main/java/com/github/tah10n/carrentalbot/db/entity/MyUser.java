@@ -7,6 +7,8 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,6 +23,7 @@ public class MyUser {
     private Boolean isAdmin;
     private Boolean isUnsubscribed;
     private String language;
+    private List<Integer> messagesStack;
 
 
     public void setLanguage(String language) {

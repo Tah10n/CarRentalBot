@@ -7,6 +7,10 @@ import java.util.ResourceBundle;
 
 
 public class ButtonsUtil {
+
+    private ButtonsUtil() {
+    }
+
     public static String getButton(String key, String lang) {
         ResourceBundle buttons = ResourceBundle.getBundle("buttons", new Locale(lang));
         if (!buttons.containsKey(key)) {
