@@ -25,6 +25,9 @@ public class BotConfig {
     @Value("${telegrambot.name}")
     private String name;
 
+    @Value("${telegrambot.botPath}")
+    private String botPath;
+
     @NotNull
     @Value("${telegrambot.creatorId}")
     private long creatorId;

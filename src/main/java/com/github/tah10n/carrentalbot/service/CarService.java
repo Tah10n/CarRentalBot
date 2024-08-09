@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
@@ -23,6 +26,8 @@ public class CarService {
     public CarService(CarDAO carDAO, BookingHistoryDAO bookingHistoryDAO) {
         this.carDAO = carDAO;
         this.bookingHistoryDAO = bookingHistoryDAO;
+
+        checkExpiredDates();
     }
 
     public List<Car> getAllCars() {
@@ -106,7 +111,7 @@ public class CarService {
         carDAO.save(car);
     }
 
-    public void bookACar(Long myUserId, String carId) {
+    public BookingHistory bookACar(Long myUserId, String carId) {
 
         List<LocalDate> chosenDates = getChosenDates(myUserId, carId);
         if (chosenDates == null || chosenDates.isEmpty()) {
@@ -122,6 +127,7 @@ public class CarService {
         } else {
             bookingHistoryDAO.save(bookingHistory);
         }
+        return bookingHistory;
     }
 
     public boolean checkIsChosenDatesAlreadyOccupied(@NotNull List<LocalDate> chosenDates, String carId) {
@@ -194,5 +200,10 @@ public class CarService {
         map.put(myUserId, localDates);
         car.setMap(map);
         carDAO.save(car);
+    }
+
+    public int getPricePerDay(String carId) {
+        Car car = carDAO.getById(carId);
+        return car.getPricePerDay();
     }
 }

@@ -5,6 +5,7 @@ import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
+import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.Ability;
 import org.telegram.telegrambots.abilitybots.api.objects.Locality;
 import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
@@ -22,11 +23,11 @@ import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 public class LanguageAbility implements AbilityExtension {
-    private final AbilityBot abilityBot;
+    private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
 
-    public LanguageAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO) {
+    public LanguageAbility(BaseAbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;

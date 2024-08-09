@@ -1,11 +1,13 @@
 package com.github.tah10n.carrentalbot.ability;
 
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
+import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
+import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
@@ -16,21 +18,21 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
-import static com.github.tah10n.carrentalbot.utils.MessagesUtil.formatDateRangeText;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDateAndPriceText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
 @Slf4j
 public class BookACarAbility implements AbilityExtension {
-    private final AbilityBot abilityBot;
+    private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
 
-    public BookACarAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
+    public BookACarAbility(BaseAbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
@@ -114,6 +116,7 @@ public class BookACarAbility implements AbilityExtension {
                     Long myUserId = upd.getCallbackQuery().getFrom().getId();
                     carService.addDate(myUserId, carId, date);
                     List<LocalDate> chosenDates = carService.getChosenDates(myUserId, carId);
+                    int pricePerDay = carService.getPricePerDay(carId);
 
                     if (carService.checkIsChosenDatesAlreadyOccupied(chosenDates, carId)) {
                         AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
@@ -126,7 +129,7 @@ public class BookACarAbility implements AbilityExtension {
                         String text = getMessage("select_dates", language) +
                                 carService.getCarName(carId) +
                                 ". " +
-                                formatDateRangeText(chosenDates, language);
+                                getDateAndPriceText(chosenDates, language, pricePerDay);
                         InlineKeyboardMarkup calendarKeyboard = keyboardMaker.getCalendarKeyboard(language, carId, currentDate, myUserId);
                         editMessage(bot, upd, chatId, messageId, text, calendarKeyboard);
                     }
@@ -164,8 +167,10 @@ public class BookACarAbility implements AbilityExtension {
                     String[] split = upd.getCallbackQuery().getData().split(":");
                     String language = split[1];
                     String carId = split[2];
+                    BookingHistory bookingHistory;
                     try {
-                        carService.bookACar(myUserId, carId);
+                        bookingHistory = carService.bookACar(myUserId, carId);
+
                     } catch (NullPointerException | IllegalArgumentException e) {
                         log.error(e.getMessage(), e);
                         carService.clearDates(myUserId, carId);
@@ -181,8 +186,11 @@ public class BookACarAbility implements AbilityExtension {
                         bot.getSilent().execute(answerCallbackQuery);
                         return;
                     }
+                    List<LocalDate> bookedDates = bookingHistory.getBookedDates();
+                    int pricePerDay = carService.getPricePerDay(bookingHistory.getCarId());
                     carService.clearDates(myUserId, carId);
-                    String carBookedText = getMessage("car_booked", language) + " " + carService.getCarName(carId);
+                    String carBookedText = getMessage("car_booked", language) + " " + carService.getCarName(carId)
+                            + "\n" + getDateAndPriceText(bookedDates, language, pricePerDay);
                     InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(language);
 
                     editMessage(bot, upd, chatId, messageId, carBookedText, backKeyboard);

@@ -1,7 +1,5 @@
 package com.github.tah10n.carrentalbot.utils;
 
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -22,7 +20,7 @@ public class MessagesUtil {
         return messages.getString(key);
     }
 
-    public static String formatDateRangeText(List<LocalDate> dates, String lang) {
+    public static String getDateAndPriceText(List<LocalDate> dates, String lang, int price) {
         if (dates == null || dates.isEmpty()) {
             return getMessage("dates_not_selected", lang);
         }
@@ -38,17 +36,24 @@ public class MessagesUtil {
         for (int i = 1; i < sortedDates.size(); i++) {
             LocalDate currentDate = sortedDates.get(i);
             if (currentDate.isAfter(rangeEnd.plusDays(1))) {
-                // Если есть промежуток, добавляем текущий диапазон и начинаем новый
                 result.append(formatRange(rangeStart, rangeEnd, formatter, lang)).append(", ");
                 rangeStart = currentDate;
             }
             rangeEnd = currentDate;
         }
 
-        // Добавляем последний диапазон
+        int totalPrice = calculateTotalPrice(sortedDates, price);
+
         result.append(formatRange(rangeStart, rangeEnd, formatter, lang));
+        result.append(".\n");
+        result.append(getMessage("total_price", lang)).append(totalPrice);
 
         return result.toString();
+    }
+
+    private static int calculateTotalPrice(List<LocalDate> sortedDates, int price) {
+
+        return price * sortedDates.size();
     }
 
     private static String formatRange(LocalDate start, LocalDate end, DateTimeFormatter formatter, String lang) {

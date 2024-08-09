@@ -2,35 +2,46 @@ package com.github.tah10n.carrentalbot.db.dao;
 
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.db.repository.MyUserRepository;
-import java.util.Collections;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 @Service
 public class MyUserDAO {
 
     private final MyUserRepository myUserRepository;
+    private final Map<Long, MyUser> myUsersCacheMap = new HashMap<>();
 
     public MyUserDAO(MyUserRepository myUserRepository) {
         this.myUserRepository = myUserRepository;
+
+        fetchMyUsersFromDB();
+    }
+
+    private void fetchMyUsersFromDB() {
+        List<MyUser> all = myUserRepository.findAll();
+
+        myUsersCacheMap.clear();
+        for (MyUser myUser : all) {
+            myUsersCacheMap.put(myUser.getId(),myUser);
+        }
     }
 
     public void save(MyUser user) {
         myUserRepository.save(user);
+        fetchMyUsersFromDB();
     }
 
     public MyUser getById(Long id) {
-        return myUserRepository.findById(id).orElse(null);
+        return myUsersCacheMap.get(id);
     }
 
     public boolean existsById(Long id) {
-        return myUserRepository.existsById(id);
+        return myUsersCacheMap.containsKey(id);
     }
 
     public void addMessageToStack(Long userId, Integer messageId) {
-        MyUser user = myUserRepository.findById(userId).orElse(null);
+        MyUser user = getById(userId);
         if (user == null) {
             return;
         }
@@ -40,11 +51,12 @@ public class MyUserDAO {
         }
         messagesStack.add(messageId);
         user.setMessagesStack(messagesStack);
-        myUserRepository.save(user);
+        myUsersCacheMap.put(userId, user);
+        pushMyUserToDB(user);
     }
 
     public boolean isMessageStackFilled(Long userId) {
-        MyUser user = myUserRepository.findById(userId).orElse(null);
+        MyUser user = getById(userId);
         if (user == null) {
             return false;
         }
@@ -52,20 +64,8 @@ public class MyUserDAO {
         return messagesStack != null && !messagesStack.isEmpty();
     }
 
-    public Integer getMessageFromStack(Long myUserId) {
-        MyUser user = myUserRepository.findById(myUserId).orElse(null);
-        if (user == null) {
-            return null;
-        }
-        Stack<Integer> messagesStack = (Stack<Integer>) user.getMessagesStack();
-        if (messagesStack == null) {
-            return null;
-        }
-        return messagesStack.pop();
-    }
-
-    public List<Integer> popAllMessagesFromStack(Long myUserId) {
-        MyUser user = myUserRepository.findById(myUserId).orElse(null);
+    public List<Integer> popAllMessagesFromStack(Long userId) {
+        MyUser user = getById(userId);
         if (user == null) {
             return Collections.emptyList();
         }
@@ -74,7 +74,12 @@ public class MyUserDAO {
             return Collections.emptyList();
         }
         user.setMessagesStack(new Stack<>());
-        myUserRepository.save(user);
+        myUsersCacheMap.put(userId, user);
+        pushMyUserToDB(user);
         return messages;
+    }
+
+    public void pushMyUserToDB(MyUser user) {
+        myUserRepository.save(user);
     }
 }

@@ -28,12 +28,12 @@ import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getCha
 
 @Slf4j
 public class ListOfCarsAbility implements AbilityExtension {
-    private final AbilityBot abilityBot;
+    private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
 
-    public ListOfCarsAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
+    public ListOfCarsAbility(BaseAbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;

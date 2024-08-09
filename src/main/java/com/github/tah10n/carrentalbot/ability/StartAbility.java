@@ -5,44 +5,41 @@ import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
-import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
-import org.telegram.telegrambots.abilitybots.api.objects.*;
+import org.telegram.telegrambots.abilitybots.api.objects.Ability;
+import org.telegram.telegrambots.abilitybots.api.objects.Locality;
+import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
+import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMemberUpdated;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
-import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Stack;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
-import static com.github.tah10n.carrentalbot.utils.MessagesUtil.formatDateRangeText;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDateAndPriceText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 @Slf4j
 public class StartAbility implements AbilityExtension {
-    private final AbilityBot abilityBot;
+    private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
 
-    public StartAbility(AbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
+    public StartAbility(BaseAbilityBot abilityBot, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
         this.abilityBot = abilityBot;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
@@ -183,10 +180,10 @@ public class StartAbility implements AbilityExtension {
             bot.getSilent().execute(answerCallbackQuery);
             return;
         }
-        System.out.println(bookingsByUserId);
         for (BookingHistory book : bookingsByUserId) {
             List<LocalDate> bookedDates = book.getBookedDates();
-            String bookedDatesString = formatDateRangeText(bookedDates, lang);
+            int pricePerDay = carService.getPricePerDay(book.getCarId());
+            String bookedDatesString = getDateAndPriceText(bookedDates, lang, pricePerDay);
             String text = carService.getCarName(book.getCarId()) + "\n" + bookedDatesString;
             SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
