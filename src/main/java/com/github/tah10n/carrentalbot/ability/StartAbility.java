@@ -9,10 +9,7 @@ import com.github.tah10n.carrentalbot.utils.MessagesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
-import org.telegram.telegrambots.abilitybots.api.objects.Ability;
-import org.telegram.telegrambots.abilitybots.api.objects.Locality;
-import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
-import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
+import org.telegram.telegrambots.abilitybots.api.objects.*;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -20,6 +17,8 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
+import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMemberUpdated;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
@@ -70,6 +69,8 @@ public class StartAbility implements AbilityExtension {
                         abilityBot.getSilent().send(greeting, ctx.chatId());
                     } else {
                         myUser = myUserDAO.getById(user.getId());
+                        myUser.setIsUnsubscribed(false);
+                        myUserDAO.save(myUser);
                     }
                     lang = myUser.getLanguage();
 
@@ -78,7 +79,7 @@ public class StartAbility implements AbilityExtension {
                     SendMessage message = SendMessage.builder()
                             .chatId(ctx.chatId().toString())
                             .text(text)
-                            .replyMarkup(keyboardMaker.getStartKeyboard(lang,myUser.getId())).build();
+                            .replyMarkup(keyboardMaker.getStartKeyboard(lang, myUser.getId())).build();
                     abilityBot.getSilent().execute(message);
 
                 }).build();
@@ -114,10 +115,10 @@ public class StartAbility implements AbilityExtension {
         InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(lang);
 
         Message message = editMessage(bot, upd, chatId, messageId, text, backKeyboard);
-        if(message == null) {
+        if (message == null) {
             return;
         }
-        myUserDAO.addMessageToStack(myUser.getId(),  message.getMessageId());
+        myUserDAO.addMessageToStack(myUser.getId(), message.getMessageId());
     }
 
 
@@ -145,11 +146,35 @@ public class StartAbility implements AbilityExtension {
                 .build();
     }
 
+    public ReplyFlow unsubscribeFlow() {
+        return ReplyFlow.builder(abilityBot.getDb())
+                .action((bot, upd) -> {
+                    Long myUserId = upd.getMyChatMember().getFrom().getId();
+                    MyUser myUser = myUserDAO.getById(myUserId);
+                    myUser.setIsUnsubscribed(true);
+                    myUserDAO.save(myUser);
+
+                })
+                .onlyIf(hasStatusKicked())
+                .build();
+    }
+
+    private Predicate<Update> hasStatusKicked() {
+        return update -> {
+            if (update.hasMyChatMember()) {
+                ChatMemberUpdated myChatMember = update.getMyChatMember();
+                return myChatMember.getNewChatMember().getStatus().equals("kicked");
+            }
+            return false;
+
+        };
+    }
+
     private void sendListOfBookings(BaseAbilityBot bot, Update upd) {
         MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
         String lang = myUser.getLanguage();
         List<BookingHistory> bookingsByUserId = carService.getBookingsByUserId(myUser.getId());
-        if(bookingsByUserId.isEmpty()) {
+        if (bookingsByUserId.isEmpty()) {
             String text = getMessage("no_bookings", lang);
             AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
                     .callbackQueryId(upd.getCallbackQuery().getId())
@@ -174,7 +199,7 @@ public class StartAbility implements AbilityExtension {
 
     private Predicate<Update> hasCallbackQueryWith(String string) {
         return update -> update.hasCallbackQuery() &&
-                         update.getCallbackQuery().getData().contains(string);
+                update.getCallbackQuery().getData().contains(string);
     }
 
 }
