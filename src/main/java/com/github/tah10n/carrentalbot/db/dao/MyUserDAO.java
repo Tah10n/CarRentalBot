@@ -23,7 +23,7 @@ public class MyUserDAO {
 
         myUsersCacheMap.clear();
         for (MyUser myUser : all) {
-            myUsersCacheMap.put(myUser.getId(),myUser);
+            myUsersCacheMap.put(myUser.getId(), myUser);
         }
     }
 
@@ -81,5 +81,40 @@ public class MyUserDAO {
 
     public void pushMyUserToDB(MyUser user) {
         myUserRepository.save(user);
+    }
+
+    public void ban(String argument) throws IllegalArgumentException {
+        MyUser user;
+        try {
+            long userId = Long.parseLong(argument);
+            user = getById(userId);
+
+        } catch (NumberFormatException e) {
+            user = myUserRepository.findByUserName(argument);
+
+        }
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+        user.setIsBanned(true);
+        myUsersCacheMap.put(user.getId(), user);
+        pushMyUserToDB(user);
+    }
+
+    public void unban(String argument) throws IllegalArgumentException {
+        MyUser user;
+        try {
+            long userId = Long.parseLong(argument);
+            user = getById(userId);
+
+        } catch (NumberFormatException e) {
+            user = myUserRepository.findByUserName(argument);
+        }
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+        user.setIsBanned(false);
+        myUsersCacheMap.put(user.getId(), user);
+        pushMyUserToDB(user);
     }
 }

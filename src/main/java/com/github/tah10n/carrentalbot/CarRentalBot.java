@@ -1,9 +1,6 @@
 package com.github.tah10n.carrentalbot;
 
-import com.github.tah10n.carrentalbot.ability.BookACarAbility;
-import com.github.tah10n.carrentalbot.ability.LanguageAbility;
-import com.github.tah10n.carrentalbot.ability.ListOfCarsAbility;
-import com.github.tah10n.carrentalbot.ability.StartAbility;
+import com.github.tah10n.carrentalbot.ability.*;
 import com.github.tah10n.carrentalbot.config.BotConfig;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
@@ -34,7 +31,8 @@ public class CarRentalBot extends AbilityWebhookBot {
                 new StartAbility(this, keyboardMaker, myUserDAO, carService),
                 new LanguageAbility(this, keyboardMaker, myUserDAO),
                 new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService),
-                new BookACarAbility(this, keyboardMaker, myUserDAO, carService)
+                new BookACarAbility(this, keyboardMaker, myUserDAO, carService),
+                new CommonAbility(this, keyboardMaker, myUserDAO, carService)
         );
 
     }
