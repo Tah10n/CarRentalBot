@@ -10,14 +10,8 @@ import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityWebhookBot;
+import org.telegram.telegrambots.abilitybots.api.toggle.BareboneToggle;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 
 @Component
 public class CarRentalBot extends AbilityWebhookBot {
@@ -27,8 +21,10 @@ public class CarRentalBot extends AbilityWebhookBot {
     private final MyUserDAO myUserDAO;
     private final CarService carService;
 
+    private static final BareboneToggle toggle = new BareboneToggle();
+
     public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
-        super(telegramClient, botConfig.getName(), botConfig.getBotPath());
+        super(telegramClient, botConfig.getName(), botConfig.getBotPath(),toggle);
         this.botConfig = botConfig;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;

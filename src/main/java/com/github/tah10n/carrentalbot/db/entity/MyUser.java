@@ -22,6 +22,7 @@ public class MyUser {
     private String userName;
     private Boolean isAdmin;
     private Boolean isUnsubscribed;
+    private Boolean isBanned;
     private String language;
     private List<Integer> messagesStack;
 

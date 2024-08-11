@@ -8,6 +8,7 @@ import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
+import org.telegram.telegrambots.abilitybots.api.db.DBContext;
 import org.telegram.telegrambots.abilitybots.api.objects.Ability;
 import org.telegram.telegrambots.abilitybots.api.objects.Locality;
 import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
@@ -60,7 +61,7 @@ public class StartAbility implements AbilityExtension {
                     if (!myUserDAO.existsById(user.getId())) {
                         myUser = new MyUser(user.getId(), user.getFirstName(), user.getLastName(), user.getUserName(),
                                 false
-                                , false, user.getLanguageCode(), new Stack<>());
+                                , false, false, user.getLanguageCode(), new Stack<>());
                         myUserDAO.save(myUser);
                         String greeting = getMessage("greeting", myUser.getLanguage());
                         abilityBot.getSilent().send(greeting, ctx.chatId());
@@ -116,6 +117,10 @@ public class StartAbility implements AbilityExtension {
             return;
         }
         myUserDAO.addMessageToStack(myUser.getId(), message.getMessageId());
+
+        DBContext db = bot.getDb();
+        String summary = db.summary();
+        log.warn(summary);
     }
 
 

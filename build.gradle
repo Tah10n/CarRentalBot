@@ -49,7 +49,7 @@ tasks.named('test') {
 
 docker {
     springBootApplication {
-        baseImage = 'openjdk:17-alpine'
+        baseImage = 'bellsoft/liberica-runtime-container:jre-17-slim-musl'
         ports = [8080]
         images = ['tah10n/car-rental-bot:latest']
     }
