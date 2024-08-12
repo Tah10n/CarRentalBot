@@ -6,7 +6,7 @@ import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
-import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
@@ -23,10 +23,12 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
+import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.executeMessage;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 @Slf4j
+@Component
 public class ListOfCarsAbility implements AbilityExtension {
     private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
@@ -59,15 +61,15 @@ public class ListOfCarsAbility implements AbilityExtension {
                     .replyMarkup(keyboardMaker.getAddCarKeyboard(myUser.getLanguage()))
                     .build();
 
-            Optional<Message> executed = bot.getSilent().execute(sendMessage);
-
-            executed.ifPresent(message -> myUserDAO.addMessageToStack(myUser.getId(), message.getMessageId()));
+            executeMessage(bot, myUser.getId(), myUserDAO, sendMessage);
         }
 
         if (cars.isEmpty()) {
             String text = getMessage("no_cars", upd.getCallbackQuery().getFrom().getLanguageCode());
-
-            bot.getSilent().send(text, getChatId(upd));
+            SendMessage sendMessage = SendMessage.builder()
+                    .chatId(getChatId(upd))
+                    .text(text).build();
+            executeMessage(bot, upd.getCallbackQuery().getFrom().getId(), myUserDAO, sendMessage);
             return;
         }
 
@@ -81,14 +83,12 @@ public class ListOfCarsAbility implements AbilityExtension {
 
         for (Car car : cars) {
             sendCarMessage(bot, upd, car, myUser);
-
-
         }
     }
 
     private void sendCarMessage(BaseAbilityBot bot, Update upd, Car car, MyUser myUser) {
         if (car.getPhotoId() != null) {
-            SendPhoto message = SendPhoto.builder()
+            SendPhoto sendPhoto = SendPhoto.builder()
                     .chatId(getChatId(upd))
                     .photo(new InputFile(car.getPhotoId()))
                     .caption(car.toString())
@@ -96,25 +96,19 @@ public class ListOfCarsAbility implements AbilityExtension {
                     .build();
             try {
 
-                Message executed = bot.getTelegramClient().execute(message);
+                Message executed = bot.getTelegramClient().execute(sendPhoto);
                 myUserDAO.addMessageToStack(myUser.getId(), executed.getMessageId());
             } catch (TelegramApiException e) {
                 log.error(e.getMessage());
                 log.error(Arrays.toString(e.getStackTrace()));
             }
         } else {
-            SendMessage message = SendMessage.builder()
+            SendMessage sendMessage = SendMessage.builder()
                     .chatId(getChatId(upd))
                     .text(car.toString())
                     .replyMarkup(keyboardMaker.getChooseCarKeyboard(car.getId(), myUser.getLanguage()))
                     .build();
-            try {
-                Message executed = bot.getTelegramClient().execute(message);
-                myUserDAO.addMessageToStack(myUser.getId(), executed.getMessageId());
-            } catch (TelegramApiException e) {
-                log.error(e.getMessage());
-                log.error(Arrays.toString(e.getStackTrace()));
-            }
+            executeMessage(bot, myUser.getId(), myUserDAO, sendMessage);
         }
     }
 
@@ -138,10 +132,12 @@ public class ListOfCarsAbility implements AbilityExtension {
                                 .text(text)
                                 .replyMarkup(keyboardMaker.getBackKeyboard(language))
                                 .build();
-                        bot.getSilent().execute(message);
+                        executeMessage(bot, myUser.getId(), myUserDAO, message);
 
                     } else {
-                        bot.getSilent().send(getMessage("car_not_added", language), chatId);
+                        SendMessage sendMessage = SendMessage.builder()
+                                .chatId(chatId).text(getMessage("car_not_added", language)).build();
+                        executeMessage(bot, myUser.getId(), myUserDAO, sendMessage);
                     }
                 })
                 .onlyIf(isReplyToMessage("enter_car_description"))

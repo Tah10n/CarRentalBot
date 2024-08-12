@@ -10,6 +10,13 @@ import org.telegram.telegrambots.abilitybots.api.bot.AbilityWebhookBot;
 import org.telegram.telegrambots.abilitybots.api.toggle.BareboneToggle;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
 @Component
 public class CarRentalBot extends AbilityWebhookBot {
 
@@ -28,13 +35,12 @@ public class CarRentalBot extends AbilityWebhookBot {
         this.carService = carService;
 
         addExtensions(
-                new StartAbility(this, keyboardMaker, myUserDAO, carService),
-                new LanguageAbility(this, keyboardMaker, myUserDAO),
-                new ListOfCarsAbility(this, keyboardMaker, myUserDAO, carService),
-                new BookACarAbility(this, keyboardMaker, myUserDAO, carService),
-                new CommonAbility(this, keyboardMaker, myUserDAO, carService)
+                new StartAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
+                new LanguageAbility(this, this.keyboardMaker, this.myUserDAO),
+                new ListOfCarsAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
+                new BookACarAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
+                new CommonAbility(this, this.keyboardMaker, this.myUserDAO, this.carService)
         );
-
     }
 
     @Override
@@ -44,41 +50,35 @@ public class CarRentalBot extends AbilityWebhookBot {
 
     @Override
     public void runDeleteWebhook() {
-//        var telegramUrl = "https://api.telegram.org/bot" + botConfig.getToken();
-//        var url = telegramUrl + "/deleteWebhook?url=" + botConfig.getBotPath();
-//        final HttpClient client = HttpClient.newHttpClient();
-//        HttpRequest request = HttpRequest.newBuilder()
-//                .uri(URI.create(url))
-//                .build();
-//        HttpResponse<String> response = null;
-//        try {
-//            response = client.send(request, HttpResponse.BodyHandlers.ofString());
-//        } catch (IOException | InterruptedException e) {
-//            e.printStackTrace();
-//        }
+        String telegramApiUrl = "https://api.telegram.org/bot" + botConfig.getToken();
+        String deleteWebhookUrl = telegramApiUrl + "/deleteWebhook?url=" + botConfig.getBotPath();
+
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(deleteWebhookUrl))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException | InterruptedException | URISyntaxException e) {
+            throw new RuntimeException("Failed to delete webhook", e);
+        }
     }
 
     @Override
     public void runSetWebhook() {
-//        var telegramUrl = "https://api.telegram.org/bot" + botConfig.getToken();
-//        var url = telegramUrl + "/setWebhook?url=" + botConfig.getBotPath();
-//        final HttpClient client = HttpClient.newBuilder().build();
-//        HttpRequest request = null;
-//        try {
-//            request = HttpRequest.newBuilder()
-//                    .uri(new URI(url))
-//                    .build();
-//        } catch (URISyntaxException e) {
-//            e.printStackTrace();
-//        }
-//        HttpResponse<String> response = null;
-//        try {
-//            response = client.send(request, HttpResponse.BodyHandlers.ofString());
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
+        String telegramApiUrl = "https://api.telegram.org/bot" + botConfig.getToken();
+        String webhookUrl = telegramApiUrl + "/setWebhook?url=" + botConfig.getBotPath();
+
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(webhookUrl))
+                    .build();
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (URISyntaxException | IOException | InterruptedException e) {
+            throw new RuntimeException("Failed to set webhook", e);
+        }
     }
 
 //    @Override

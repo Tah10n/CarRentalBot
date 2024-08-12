@@ -63,8 +63,9 @@ public class InlineKeyboardMaker {
     public InlineKeyboardMarkup getChooseCarKeyboard(String carId, String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
+                        InlineKeyboardButton.builder().text(getButton("back", lang)).callbackData("back").build(),
                         InlineKeyboardButton.builder().text(getButton("choose_car", lang)).callbackData("choose_car:" + carId).build()
-                )).build();
+                        )).build();
     }
 
     public InlineKeyboardMarkup getAddCarKeyboard(String language) {
@@ -159,6 +160,7 @@ public class InlineKeyboardMaker {
     public InlineKeyboardMarkup getDeleteBookingKeyboard(String bookId, String lang) {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(new InlineKeyboardRow(
+                        InlineKeyboardButton.builder().text(getButton("back", lang)).callbackData("back").build(),
                         InlineKeyboardButton.builder().text(getButton("delete_booking", lang)).callbackData("delete_booking:" + bookId).build()
                 ))
                 .build();

@@ -42,7 +42,7 @@ public class MessagesUtil {
             rangeEnd = currentDate;
         }
 
-        int totalPrice = calculateTotalPrice(sortedDates, price);
+        int totalPrice = calculateTotalPrice(dates, price);
 
         result.append(formatRange(rangeStart, rangeEnd, formatter, lang));
         result.append(".\n");
@@ -51,9 +51,11 @@ public class MessagesUtil {
         return result.toString();
     }
 
-    private static int calculateTotalPrice(List<LocalDate> sortedDates, int price) {
-
-        return price * sortedDates.size();
+    private static int calculateTotalPrice(List<LocalDate> dates, int price) {
+        if (dates == null || dates.isEmpty()) {
+            return 0;
+        }
+        return price * dates.size();
     }
 
     private static String formatRange(LocalDate start, LocalDate end, DateTimeFormatter formatter, String lang) {

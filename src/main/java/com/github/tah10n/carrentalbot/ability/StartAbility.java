@@ -6,7 +6,7 @@ import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
-import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.telegrambots.abilitybots.api.db.DBContext;
 import org.telegram.telegrambots.abilitybots.api.objects.Ability;
@@ -19,21 +19,23 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMemberUpdated;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Stack;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
+import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.executeMessage;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDateAndPriceText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
 @Slf4j
+@Component
 public class StartAbility implements AbilityExtension {
     private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
@@ -64,21 +66,27 @@ public class StartAbility implements AbilityExtension {
                                 , false, false, user.getLanguageCode(), new Stack<>());
                         myUserDAO.save(myUser);
                         String greeting = getMessage("greeting", myUser.getLanguage());
-                        abilityBot.getSilent().send(greeting, ctx.chatId());
+                        SendMessage sendMessage = SendMessage.builder()
+                                .chatId(ctx.chatId().toString())
+                                .text(greeting).build();
+                        executeMessage(abilityBot, myUser.getId(), myUserDAO, sendMessage);
+
                     } else {
                         myUser = myUserDAO.getById(user.getId());
-                        myUser.setIsUnsubscribed(false);
-                        myUserDAO.save(myUser);
+                        if(Boolean.TRUE.equals(myUser.getIsUnsubscribed())) {
+                            myUser.setIsUnsubscribed(false);
+                            myUserDAO.save(myUser);
+                        }
                     }
                     lang = myUser.getLanguage();
 
 
                     String text = getMessage("start", lang);
-                    SendMessage message = SendMessage.builder()
+                    SendMessage sendMessage = SendMessage.builder()
                             .chatId(ctx.chatId().toString())
                             .text(text)
                             .replyMarkup(keyboardMaker.getStartKeyboard(lang, myUser.getId())).build();
-                    abilityBot.getSilent().execute(message);
+                    executeMessage(abilityBot, myUser.getId(), myUserDAO, sendMessage);
 
                 }).build();
     }
@@ -148,30 +156,6 @@ public class StartAbility implements AbilityExtension {
                 .build();
     }
 
-    public ReplyFlow unsubscribeFlow() {
-        return ReplyFlow.builder(abilityBot.getDb())
-                .action((bot, upd) -> {
-                    Long myUserId = upd.getMyChatMember().getFrom().getId();
-                    MyUser myUser = myUserDAO.getById(myUserId);
-                    myUser.setIsUnsubscribed(true);
-                    myUserDAO.save(myUser);
-
-                })
-                .onlyIf(hasStatusKicked())
-                .build();
-    }
-
-    private Predicate<Update> hasStatusKicked() {
-        return update -> {
-            if (update.hasMyChatMember()) {
-                ChatMemberUpdated myChatMember = update.getMyChatMember();
-                return myChatMember.getNewChatMember().getStatus().equals("kicked");
-            }
-            return false;
-
-        };
-    }
-
     private void sendListOfBookings(BaseAbilityBot bot, Update upd) {
         MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
         String lang = myUser.getLanguage();
@@ -195,7 +179,8 @@ public class StartAbility implements AbilityExtension {
                     .text(text)
                     .replyMarkup(keyboardMaker.getDeleteBookingKeyboard(book.getId(), lang))
                     .build();
-            bot.getSilent().execute(sendMessage);
+
+            executeMessage(bot, myUser.getId(), myUserDAO, sendMessage);
         }
     }
 

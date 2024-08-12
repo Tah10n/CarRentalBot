@@ -28,8 +28,8 @@ public class MyUserDAO {
     }
 
     public void save(MyUser user) {
-        myUserRepository.save(user);
-        fetchMyUsersFromDB();
+        myUsersCacheMap.put(user.getId(), user);
+        pushMyUserToDB(user);
     }
 
     public MyUser getById(Long id) {

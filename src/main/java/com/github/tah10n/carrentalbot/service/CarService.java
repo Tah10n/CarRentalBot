@@ -83,7 +83,7 @@ public class CarService {
         return car.getModel();
     }
 
-    public Car addDate(Long myUserId, String carId, LocalDate date) {
+    public void addDate(Long myUserId, String carId, LocalDate date) {
         Car car = carDAO.getById(carId);
         Map<Long, List<LocalDate>> map = car.getMap();
         List<LocalDate> localDates = map.get(myUserId);
@@ -100,7 +100,6 @@ public class CarService {
         map.put(myUserId, localDates);
         car.setMap(map);
         carDAO.save(car);
-        return car;
     }
 
     public void clearDates(Long myUserId, String carId) {
@@ -142,7 +141,6 @@ public class CarService {
 
     @Scheduled(cron = "0 0 1 * * *")
     public void checkExpiredDates() {
-        System.out.println("\n \n  Checking expired dates \n \n");
         List<BookingHistory> allActiveHistory = bookingHistoryDAO.getAllActiveHistory();
         for (BookingHistory history : allActiveHistory) {
             LocalDate nowDate = LocalDate.now();

@@ -2,10 +2,12 @@ package com.github.tah10n.carrentalbot.ability;
 
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
+import com.github.tah10n.carrentalbot.db.entity.Car;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
@@ -15,10 +17,12 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessages;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
@@ -26,6 +30,7 @@ import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDateAndPriceT
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 
 @Slf4j
+@Component
 public class BookACarAbility implements AbilityExtension {
     private final BaseAbilityBot abilityBot;
     private final InlineKeyboardMaker keyboardMaker;
@@ -199,33 +204,7 @@ public class BookACarAbility implements AbilityExtension {
                 .build();
     }
 
-    public ReplyFlow backButton() {
-        return ReplyFlow.builder(abilityBot.getDb())
-                .action((bot, upd) -> {
-                    Long chatId = upd.getCallbackQuery().getFrom().getId();
-                    MyUser myUser = myUserDAO.getById(chatId);
-                    String lang = myUser.getLanguage();
-                    String text = getMessage("start", lang);
-                    InlineKeyboardMarkup startKeyboard = keyboardMaker.getStartKeyboard(lang, myUser.getId());
-                    if (myUserDAO.isMessageStackFilled(myUser.getId())) {
-                        List<Integer> messageList = myUserDAO.popAllMessagesFromStack(myUser.getId());
-                        DeleteMessages deleteMessages = DeleteMessages.builder()
-                                .chatId(chatId.toString())
-                                .messageIds(messageList)
-                                .build();
 
-                        bot.getSilent().execute(deleteMessages);
-                    }
-                    SendMessage sendMessage = SendMessage.builder()
-                            .chatId(chatId)
-                            .text(text)
-                            .replyMarkup(startKeyboard).build();
-                    bot.getSilent().execute(sendMessage);
-
-                })
-                .onlyIf(hasCallbackQueryWith("back"))
-                .build();
-    }
 
     public ReplyFlow ignore() {
         return ReplyFlow.builder(abilityBot.getDb())
