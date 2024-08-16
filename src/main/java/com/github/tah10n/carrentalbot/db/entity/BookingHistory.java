@@ -29,6 +29,7 @@ public class BookingHistory {
     @CreatedDate
     private LocalDateTime createdAt;
     private List<LocalDate> bookedDates;
+    private Integer totalPrice;
     private boolean isActive;
 
 }

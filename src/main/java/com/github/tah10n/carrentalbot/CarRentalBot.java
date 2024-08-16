@@ -5,6 +5,7 @@ import com.github.tah10n.carrentalbot.config.BotConfig;
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
+import com.github.tah10n.carrentalbot.service.GoogleSheetsService;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityWebhookBot;
 import org.telegram.telegrambots.abilitybots.api.toggle.BareboneToggle;
@@ -24,21 +25,23 @@ public class CarRentalBot extends AbilityWebhookBot {
     private final InlineKeyboardMaker keyboardMaker;
     private final MyUserDAO myUserDAO;
     private final CarService carService;
+    private final GoogleSheetsService googleSheetsService;
 
     private static final BareboneToggle toggle = new BareboneToggle();
 
-    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService) {
+    public CarRentalBot(BotConfig botConfig, TelegramClient telegramClient, InlineKeyboardMaker keyboardMaker, MyUserDAO myUserDAO, CarService carService, GoogleSheetsService googleSheetsService) {
         super(telegramClient, botConfig.getName(), botConfig.getBotPath(),toggle);
         this.botConfig = botConfig;
         this.keyboardMaker = keyboardMaker;
         this.myUserDAO = myUserDAO;
         this.carService = carService;
+        this.googleSheetsService = googleSheetsService;
 
         addExtensions(
                 new StartAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
                 new LanguageAbility(this, this.keyboardMaker, this.myUserDAO),
                 new ListOfCarsAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
-                new BookACarAbility(this, this.keyboardMaker, this.myUserDAO, this.carService),
+                new BookACarAbility(this, this.keyboardMaker, this.myUserDAO, this.carService, this.googleSheetsService),
                 new CommonAbility(this, this.keyboardMaker, this.myUserDAO, this.carService)
         );
     }

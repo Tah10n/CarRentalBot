@@ -2,6 +2,7 @@ package com.github.tah10n.carrentalbot.service;
 
 import com.github.tah10n.carrentalbot.db.dao.BookingHistoryDAO;
 import com.github.tah10n.carrentalbot.db.dao.CarDAO;
+import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
 import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.Car;
 import org.jetbrains.annotations.NotNull;
@@ -9,25 +10,30 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.*;
 
 @Service
 @Transactional
 public class CarService {
     private final CarDAO carDAO;
     private final BookingHistoryDAO bookingHistoryDAO;
+    private final MyUserDAO myUserDAO;
 
-    public CarService(CarDAO carDAO, BookingHistoryDAO bookingHistoryDAO) {
+    public CarService(CarDAO carDAO, BookingHistoryDAO bookingHistoryDAO, MyUserDAO myUserDAO) {
         this.carDAO = carDAO;
         this.bookingHistoryDAO = bookingHistoryDAO;
 
         checkExpiredDates();
+        this.myUserDAO = myUserDAO;
     }
 
     public List<Car> getAllCars() {
@@ -62,10 +68,10 @@ public class CarService {
             endDate = startDate;
             startDate = tmp;
         }
-        return getDates(startDate, endDate);
+        return getListOfDates(startDate, endDate);
     }
 
-    private List<LocalDate> getDates(LocalDate startDate, LocalDate endDate) {
+    private List<LocalDate> getListOfDates(LocalDate startDate, LocalDate endDate) {
         List<LocalDate> dates = new ArrayList<>();
         LocalDate date = startDate;
         while (!date.isAfter(endDate)) {
@@ -110,7 +116,7 @@ public class CarService {
         carDAO.save(car);
     }
 
-    public BookingHistory bookACar(Long myUserId, String carId) {
+    public BookingHistory bookACar(Long myUserId, String carId) throws IOException {
 
         List<LocalDate> chosenDates = getChosenDates(myUserId, carId);
         if (chosenDates == null || chosenDates.isEmpty()) {
@@ -120,11 +126,13 @@ public class CarService {
         bookingHistory.setCarId(carId);
         bookingHistory.setUserId(myUserId);
         bookingHistory.setBookedDates(chosenDates);
+        bookingHistory.setTotalPrice(calculateTotalPrice(chosenDates, getPricePerDay(carId)));
         bookingHistory.setActive(true);
         if (checkIsChosenDatesAlreadyOccupied(chosenDates, carId)) {
             throw new IllegalArgumentException("Dates are already occupied");
         } else {
             bookingHistoryDAO.save(bookingHistory);
+
         }
         return bookingHistory;
     }
@@ -170,6 +178,7 @@ public class CarService {
     }
 
     public List<BookingHistory> getBookingsByUserId(Long myUserId) {
+
         return bookingHistoryDAO.getActiveBookingsByUserId(myUserId);
     }
 
@@ -203,5 +212,21 @@ public class CarService {
     public int getPricePerDay(String carId) {
         Car car = carDAO.getById(carId);
         return car.getPricePerDay();
+    }
+
+    public String[] getBookingHistoryValues(String bookId) {
+        BookingHistory bookingHistory = bookingHistoryDAO.getById(bookId);
+        String id = bookingHistory.getId();
+        String carName = getCarName(bookingHistory.getCarId());
+        String userName = myUserDAO.getById(bookingHistory.getUserId()).getUserName();
+        String lang = myUserDAO.getLanguage(bookingHistory.getUserId());
+        LocalDateTime createdAt = bookingHistory.getCreatedAt();
+        DateTimeFormatter formatCreatedDate = DateTimeFormatter.ofPattern("HH:mm:ss dd.MM.yyyy");
+        String createdDate = createdAt.format(formatCreatedDate);
+        String dates = getDates(bookingHistory.getBookedDates(), lang);
+        Integer totalPrice = bookingHistory.getTotalPrice();
+
+        boolean isActive = bookingHistory.isActive();
+        return new String[] { id, carName, userName, createdDate, dates, totalPrice.toString(), String.valueOf(isActive) };
     }
 }

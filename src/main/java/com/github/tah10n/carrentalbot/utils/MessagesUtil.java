@@ -20,16 +20,30 @@ public class MessagesUtil {
         return messages.getString(key);
     }
 
-    public static String getDateAndPriceText(List<LocalDate> dates, String lang, int price) {
+    public static String getDatesAndPriceText(List<LocalDate> dates, String lang, int price) {
         if (dates == null || dates.isEmpty()) {
             return getMessage("dates_not_selected", lang);
         }
+        StringBuilder result = new StringBuilder(getMessage("dates_selected", lang));
 
+        String datesString = getDates(dates, lang);
+
+        result.append(datesString);
+        result.append(".\n");
+
+        int totalPrice = calculateTotalPrice(dates, price);
+        result.append(getMessage("total_price", lang)).append(totalPrice);
+
+        return result.toString();
+    }
+
+    public static String getDates(List<LocalDate> dates, String lang) {
+        StringBuilder result = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM");
         List<LocalDate> sortedDates = new ArrayList<>(dates);
         Collections.sort(sortedDates);
 
-        StringBuilder result = new StringBuilder(getMessage("dates_selected", lang));
+
         LocalDate rangeStart = sortedDates.get(0);
         LocalDate rangeEnd = rangeStart;
 
@@ -42,16 +56,11 @@ public class MessagesUtil {
             rangeEnd = currentDate;
         }
 
-        int totalPrice = calculateTotalPrice(dates, price);
-
         result.append(formatRange(rangeStart, rangeEnd, formatter, lang));
-        result.append(".\n");
-        result.append(getMessage("total_price", lang)).append(totalPrice);
-
         return result.toString();
     }
 
-    private static int calculateTotalPrice(List<LocalDate> dates, int price) {
+    public static int calculateTotalPrice(List<LocalDate> dates, int price) {
         if (dates == null || dates.isEmpty()) {
             return 0;
         }

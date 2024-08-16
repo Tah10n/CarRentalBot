@@ -81,7 +81,7 @@ public class LanguageAbility implements AbilityExtension {
 
                     bot.getSilent().execute(DeleteMessage.builder().chatId(chatId).messageId(upd.getCallbackQuery().getMessage().getMessageId()).build());
 
-                    executeMessage(bot, myUserId, myUserDAO, sendMessage);
+                    bot.getSilent().execute(sendMessage);
 
                 })
                 .onlyIf(hasCallbackQueryWith("lang"))

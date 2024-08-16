@@ -39,3 +39,5 @@ out/
 *.env
 
 Car_Rental_Bot
+/src/main/resources/credentials.json
+/src/main/resources/credentials_desktop.json

@@ -27,7 +27,7 @@ public class WebhookController {
     public BotApiMethod<?> onUpdateReceived(@RequestBody Update update) {
         MyUser myUser = myUserDAO.getById(getUser(update).getId());
 
-        if (myUser.getIsBanned() != null && myUser.getIsBanned()) {
+        if (myUser != null && myUser.getIsBanned() != null && myUser.getIsBanned()) {
             return null;
         }
         return bot.consumeUpdate(update);

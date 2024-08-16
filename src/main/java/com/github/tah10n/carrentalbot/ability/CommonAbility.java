@@ -79,7 +79,7 @@ public class CommonAbility implements AbilityExtension {
                                 .text(getMessage("ban_command_usage", language))
                                 .build();
 
-                        executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                        abilityBot.getSilent().execute(message);
                     } else {
                         String argument = arguments[0];
                         try {
@@ -89,14 +89,14 @@ public class CommonAbility implements AbilityExtension {
                                     .text(getMessage("user_was_banned", language))
                                     .build();
 
-                            executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                            abilityBot.getSilent().execute(message);
                         } catch (IllegalArgumentException e) {
                             SendMessage message = SendMessage.builder()
                                     .chatId(ctx.chatId())
                                     .text(getMessage("user_not_found", language))
                                     .build();
 
-                            executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                            abilityBot.getSilent().execute(message);
                         }
                     }
 
@@ -120,7 +120,7 @@ public class CommonAbility implements AbilityExtension {
                                 .text(getMessage("unban_command_usage", language))
                                 .build();
 
-                        executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                        abilityBot.getSilent().execute(message);
                     } else {
                         String argument = arguments[0];
                         try {
@@ -130,14 +130,14 @@ public class CommonAbility implements AbilityExtension {
                                     .text(getMessage("user_was_unbanned", language))
                                     .build();
 
-                            executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                            abilityBot.getSilent().execute(message);
                         } catch (IllegalArgumentException e) {
                             SendMessage message = SendMessage.builder()
                                     .chatId(ctx.chatId())
                                     .text(getMessage("user_not_found", language))
                                     .build();
 
-                            executeMessage(abilityBot, ctx.user().getId(), myUserDAO, message);
+                            abilityBot.getSilent().execute(message);
                         }
                     }
 

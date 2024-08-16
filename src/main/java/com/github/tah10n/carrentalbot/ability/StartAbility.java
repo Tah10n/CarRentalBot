@@ -24,13 +24,12 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.Stack;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.executeMessage;
-import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDateAndPriceText;
+import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDatesAndPriceText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
@@ -88,6 +87,7 @@ public class StartAbility implements AbilityExtension {
                             .replyMarkup(keyboardMaker.getStartKeyboard(lang, myUser.getId())).build();
                     executeMessage(abilityBot, myUser.getId(), myUserDAO, sendMessage);
 
+
                 }).build();
     }
 
@@ -129,59 +129,6 @@ public class StartAbility implements AbilityExtension {
         DBContext db = bot.getDb();
         String summary = db.summary();
         log.warn(summary);
-    }
-
-
-    public ReplyFlow myBookingsFlow() {
-        return ReplyFlow.builder(abilityBot.getDb())
-                .action(this::sendListOfBookings)
-                .onlyIf(hasCallbackQueryWith("my_bookings"))
-                .build();
-    }
-
-    public ReplyFlow deleteBookingFlow() {
-        return ReplyFlow.builder(abilityBot.getDb())
-                .action((bot, upd) -> {
-                    String[] split = upd.getCallbackQuery().getData().split(":");
-                    String bookId = split[1];
-                    DeleteMessage deleteMessage = DeleteMessage.builder()
-                            .chatId(getChatId(upd))
-                            .messageId(upd.getCallbackQuery().getMessage().getMessageId())
-                            .build();
-
-                    carService.deleteBookingById(bookId);
-                    bot.getSilent().execute(deleteMessage);
-                })
-                .onlyIf(hasCallbackQueryWith("delete_booking"))
-                .build();
-    }
-
-    private void sendListOfBookings(BaseAbilityBot bot, Update upd) {
-        MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
-        String lang = myUser.getLanguage();
-        List<BookingHistory> bookingsByUserId = carService.getBookingsByUserId(myUser.getId());
-        if (bookingsByUserId.isEmpty()) {
-            String text = getMessage("no_bookings", lang);
-            AnswerCallbackQuery answerCallbackQuery = AnswerCallbackQuery.builder()
-                    .callbackQueryId(upd.getCallbackQuery().getId())
-                    .text(text)
-                    .build();
-            bot.getSilent().execute(answerCallbackQuery);
-            return;
-        }
-        for (BookingHistory book : bookingsByUserId) {
-            List<LocalDate> bookedDates = book.getBookedDates();
-            int pricePerDay = carService.getPricePerDay(book.getCarId());
-            String bookedDatesString = getDateAndPriceText(bookedDates, lang, pricePerDay);
-            String text = carService.getCarName(book.getCarId()) + "\n" + bookedDatesString;
-            SendMessage sendMessage = SendMessage.builder()
-                    .chatId(getChatId(upd))
-                    .text(text)
-                    .replyMarkup(keyboardMaker.getDeleteBookingKeyboard(book.getId(), lang))
-                    .build();
-
-            executeMessage(bot, myUser.getId(), myUserDAO, sendMessage);
-        }
     }
 
     private Predicate<Update> hasCallbackQueryWith(String string) {

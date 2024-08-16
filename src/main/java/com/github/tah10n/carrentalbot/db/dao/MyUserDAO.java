@@ -117,4 +117,12 @@ public class MyUserDAO {
         myUsersCacheMap.put(user.getId(), user);
         pushMyUserToDB(user);
     }
+
+    public String getLanguage(Long userId) {
+        MyUser user = getById(userId);
+        if (user == null) {
+            return "ru";
+        }
+        return user.getLanguage();
+    }
 }
