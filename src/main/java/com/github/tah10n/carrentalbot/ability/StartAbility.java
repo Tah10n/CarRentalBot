@@ -1,37 +1,29 @@
 package com.github.tah10n.carrentalbot.ability;
 
 import com.github.tah10n.carrentalbot.db.dao.MyUserDAO;
-import com.github.tah10n.carrentalbot.db.entity.BookingHistory;
 import com.github.tah10n.carrentalbot.db.entity.MyUser;
 import com.github.tah10n.carrentalbot.keyboards.InlineKeyboardMaker;
 import com.github.tah10n.carrentalbot.service.CarService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.BaseAbilityBot;
-import org.telegram.telegrambots.abilitybots.api.db.DBContext;
 import org.telegram.telegrambots.abilitybots.api.objects.Ability;
 import org.telegram.telegrambots.abilitybots.api.objects.Locality;
 import org.telegram.telegrambots.abilitybots.api.objects.Privacy;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.abilitybots.api.util.AbilityExtension;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
-import java.time.LocalDate;
-import java.util.List;
 import java.util.Stack;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.executeMessage;
-import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getDatesAndPriceText;
 import static com.github.tah10n.carrentalbot.utils.MessagesUtil.getMessage;
-import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
+import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getUser;
 
 @Slf4j
 @Component
@@ -113,22 +105,17 @@ public class StartAbility implements AbilityExtension {
     }
 
     private void simpleButtonAction(Update upd, String actionName, BaseAbilityBot bot) {
-        MyUser myUser = myUserDAO.getById(upd.getCallbackQuery().getFrom().getId());
+        Long myUserId = getUser(upd).getId();
+        MyUser myUser = myUserDAO.getById(myUserId);
         Long chatId = upd.getCallbackQuery().getFrom().getId();
         Integer messageId = upd.getCallbackQuery().getMessage().getMessageId();
         String lang = myUser.getLanguage();
         String text = getMessage(actionName, lang);
         InlineKeyboardMarkup backKeyboard = keyboardMaker.getBackKeyboard(lang);
 
-        Message message = editMessage(bot, upd, chatId, messageId, text, backKeyboard);
-        if (message == null) {
-            return;
-        }
-        myUserDAO.addMessageToStack(myUser.getId(), message.getMessageId());
-
-        DBContext db = bot.getDb();
-        String summary = db.summary();
-        log.warn(summary);
+        editMessage(bot, upd, chatId, messageId, text, backKeyboard);
+        myUserDAO.addMessageToStack(myUserId, messageId);
+        
     }
 
     private Predicate<Update> hasCallbackQueryWith(String string) {

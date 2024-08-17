@@ -44,11 +44,11 @@ public class GoogleSheetsService {
 //        }
     }
 
-    public AppendValuesResponse appendValues(BookingHistory bookingHistory) throws IOException {
+    public AppendValuesResponse appendValues(String bookingHistoryId) throws IOException {
 
         ValueRange appendBody = new ValueRange()
                 .setValues(Arrays.asList(
-                        Arrays.asList(carService.getBookingHistoryValues(bookingHistory.getId()))));
+                        Arrays.asList(carService.getBookingHistoryValues(bookingHistoryId))));
         AppendValuesResponse appendResult = service.spreadsheets().values()
                 .append(SPREADSHEET_ID, "A1", appendBody)
                 .setValueInputOption("USER_ENTERED")

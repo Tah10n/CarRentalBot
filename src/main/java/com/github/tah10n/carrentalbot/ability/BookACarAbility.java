@@ -21,6 +21,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 
 import static com.github.tah10n.carrentalbot.utils.MessageHandlerUtil.editMessage;
@@ -45,6 +47,8 @@ public class BookACarAbility implements AbilityExtension {
         this.carService = carService;
         this.googleSheetsService = googleSheetsService;
     }
+
+
 
     public ReplyFlow chooseACarFlow() {
         return ReplyFlow.builder(abilityBot.getDb())
@@ -177,7 +181,16 @@ public class BookACarAbility implements AbilityExtension {
                     BookingHistory bookingHistory = null;
                     try {
                         bookingHistory = carService.bookACar(myUserId, carId);
-                        googleSheetsService.appendValues(bookingHistory);
+                        String bookingHistoryId = bookingHistory.getId();
+                        ExecutorService executor = Executors.newSingleThreadExecutor();
+                        executor.submit(() -> {
+                            try {
+                                googleSheetsService.appendValues(bookingHistoryId);
+                            } catch (IOException e) {
+                                log.error(e.getMessage(), e);
+                            }
+                        });
+                        executor.shutdown();
                     } catch (NullPointerException | IllegalArgumentException e) {
                         log.error(e.getMessage(), e);
                         carService.clearDates(myUserId, carId);
@@ -246,11 +259,17 @@ public class BookACarAbility implements AbilityExtension {
                             .build();
 
                     carService.deleteBookingById(bookId);
-                    try {
-                        googleSheetsService.deleteValues(bookId);
-                    } catch (IOException e) {
-                        log.error(e.getMessage(), e);
-                    }
+
+                    ExecutorService executor = Executors.newSingleThreadExecutor();
+                    executor.submit(() -> {
+                        try {
+                            googleSheetsService.deleteValues(bookId);
+                        } catch (IOException e) {
+                            log.error(e.getMessage(), e);
+                        }
+                    });
+                    executor.shutdown();
+
                     bot.getSilent().execute(deleteMessage);
                 })
                 .onlyIf(hasCallbackQueryWith("delete_booking"))
@@ -270,11 +289,7 @@ public class BookACarAbility implements AbilityExtension {
             bot.getSilent().execute(answerCallbackQuery);
             return;
         }
-        try {
-            googleSheetsService.getValues();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+
         for (BookingHistory book : bookingsByUserId) {
             List<LocalDate> bookedDates = book.getBookedDates();
             int pricePerDay = carService.getPricePerDay(book.getCarId());
